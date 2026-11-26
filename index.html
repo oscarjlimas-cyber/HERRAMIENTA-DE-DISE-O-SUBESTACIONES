@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}.golazo{display:flex;gap:14px;align-items:center;margin:14px 0 0;padding:12px 16px;border-radius:12px;background:#1d4fa3;color:#fff;border:2px solid #fff;box-shadow:0 0 0 2px #1d4fa3}
+.golazo b{display:block;font-family:var(--f-disp);font-size:17px}.golazo span{font-size:13.5px;opacity:.92}.golazo .gz-b{font-size:28px;opacity:1}
+.mejbar{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:4px 0 12px}.mejbar>div{flex:1;min-width:120px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--surface2)}
+.mejbar>div.on{background:var(--safe);border-color:var(--link)}.mejbar span{display:block;font-size:12px;color:var(--muted)}.mejbar b{font-size:17px;color:var(--navy)}.mejbar i{align-self:center;font-style:normal;color:var(--muted);font-size:20px}
+</style>
+<title>SUBE · Herramienta de diseño de subestaciones</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Herramienta de diseño de subestaciones: coordinación de aislamiento, aisladores, distancias, conductores, equipos, malla de puesta a tierra y apantallamiento. Caso base: S/E Termales 115 kV.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: banda de encabezado institucional (logo + ficha de la subestación), barra de módulos fija y, debajo, cada módulo en dos columnas: datos a la izquierda, resultados y memoria a la derecha. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface2:#f5f7fa; --ink:#0f1e36; --muted:#5a6678; --line:#dde3ea;
+  --navy:#123a73; --navy2:#0c2a55; --onnavy:#ffffff; --onnavy-mut:#c9d6ea;
+  --accent:#c8202f; --accent-soft:#fbe8ea; --link:#1652a8;
+  --ok:#11743d; --okbg:#e6f4ec; --wa:#8a5600; --wabg:#fff5dc; --no:#b3261e; --nobg:#fdeceb;
+  --live:#c8202f; --zone:#f6c9cd; --safe:#d6e8f6; --steel:#7c8898; --chart1:#1652a8; --chart2:#c8202f;
+  --f-disp:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:6px; color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:120px}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4{font-family:var(--f-disp);text-wrap:balance;margin:0}
+.num,td,.kpi b,.mono{font-variant-numeric:tabular-nums}
+
+/* ---------- encabezado ---------- */
+.hdr{background:var(--bg);color:var(--ink);border-top:6px solid var(--navy);box-shadow:inset 0 2px 0 0 var(--accent)}
+.hdr .wrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px 28px;align-items:center;padding-block:18px}
+.logo{display:flex;align-items:center;padding-right:24px;border-right:1px solid var(--line)}
+.logo img{display:block;height:84px;width:auto}
+.ttl small{display:block;font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.ttl h1{font-size:clamp(26px,3.4vw,38px);font-weight:800;letter-spacing:.005em;line-height:1.1;margin-top:2px;color:var(--navy)}
+.ttl h1 em{font-style:normal;color:var(--accent)}
+.ttl p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.ficha{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:4px;overflow:hidden}
+.ficha div{background:var(--surface2);padding:8px 12px;min-width:0}
+.ficha span{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ficha b{font-weight:600;font-size:14px;line-height:1.35;display:block;color:var(--navy)}
+@media (max-width:640px){.hdr .wrap{grid-template-columns:minmax(0,1fr)}.logo{justify-self:start;border-right:0;padding-right:0}.logo img{height:60px}.ficha{grid-template-columns:repeat(2,minmax(0,1fr))}.ficha b{font-size:13px}}
+
+/* ---------- navegación ---------- */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line);border-top:1px solid var(--line)}
+.nav .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.nav .wrap::-webkit-scrollbar{display:none}
+.tab{flex:none;border:0;background:none;padding:13px 11px 11px;cursor:pointer;font-family:var(--f-disp);font-weight:600;font-size:15px;color:var(--muted);border-bottom:3px solid transparent;display:flex;gap:8px;align-items:center}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--navy);border-bottom-color:var(--accent)}
+.tab .st{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.st.ok{background:var(--ok)}.st.wa{background:var(--wa)}.st.no{background:var(--no)}
+
+main{padding-block:22px 40px}
+.panel{display:flex;flex-direction:column;gap:18px}
+.phead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 20px;align-items:flex-end}
+.phead h2{font-size:26px;font-weight:700;color:var(--navy)}
+.phead p{margin:4px 0 0;color:var(--muted);max-width:75ch}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{text-decoration:none;display:inline-block;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 12px;cursor:pointer;font-size:14px;font-weight:500}
+.btn:hover{border-color:var(--link);color:var(--link)}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:var(--onnavy)}
+.btn.pri:hover{background:var(--navy2);color:var(--onnavy)}
+.cols{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:960px){.cols{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0;box-shadow:0 1px 2px rgba(15,30,54,.04)}
+.card h3{font-size:17px;font-weight:700;margin-bottom:10px;color:var(--navy)}
+.card h3 small{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+.form{display:flex;flex-direction:column;gap:14px;position:sticky;top:66px}
+@media (max-width:960px){.form{position:static}}
+@media (min-width:961px){.form{max-height:calc(100vh - 78px);overflow-y:auto;padding-right:2px}}
+#proyCard summary{cursor:pointer;font-family:var(--f-disp);font-weight:700;color:var(--navy);font-size:17px}
+#proyCard summary small{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+.cfgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.cfgc{display:flex;flex-direction:column;gap:8px}.cfgc.on{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
+.cfgc h3{margin:0}.cfgc p{margin:0;font-size:13.5px;color:var(--muted)}.cfgc svg{max-width:340px;align-self:center}
+.cfgf{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto;font-size:12.5px}
+.dots{font-family:var(--f-mono);letter-spacing:1px;color:var(--navy);font-size:13px}
+span.mut{color:var(--muted)}
+fieldset{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px 14px;margin:0;background:var(--surface2);min-width:0}
+legend{font-family:var(--f-disp);font-weight:700;padding:0 6px;font-size:15px;color:var(--navy)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fld>span{font-size:12.5px;color:var(--muted);line-height:1.3}
+.fld .u{display:flex;align-items:center;border:1px solid var(--line);border-radius:4px;background:var(--surface);overflow:hidden}
+.fld .u:focus-within{border-color:var(--link)}
+.fld input,.fld select{border:0;background:transparent;padding:7px 8px;width:100%;min-width:0;outline:none}
+.fld select{border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.fld em{font-style:normal;font-family:var(--f-mono);font-size:12px;color:var(--muted);padding-right:8px;white-space:nowrap}
+.fld .hint{font-size:11.5px;color:var(--muted);line-height:1.35}
+.fld.wide{grid-column:1/-1}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px}
+.chk input{width:auto}
+.chk.fld{flex-direction:row;align-items:center;gap:8px}.chk.fld input{width:18px;height:18px;flex:none;padding:0}
+details.adv summary{cursor:pointer;color:var(--link);font-size:14px;margin-top:10px}
+.linked{font-size:12.5px;background:var(--surface2);border:1px dashed var(--line);border-radius:6px;padding:6px 9px;color:var(--muted)}
+
+/* veredicto y kpis */
+.verdict{display:flex;gap:12px;align-items:flex-start;border-radius:var(--r);padding:14px 16px;border:1px solid}
+.verdict b{font-family:var(--f-disp);font-size:19px;display:block;line-height:1.25}
+.verdict p{margin:3px 0 0;font-size:14px}
+.verdict.ok{background:var(--okbg);color:var(--ok);border-color:currentColor}
+.verdict.wa{background:var(--wabg);color:var(--wa);border-color:currentColor}
+.verdict.no{background:var(--nobg);color:var(--no);border-color:currentColor}
+.verdict .ic{font-size:22px;line-height:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi span{font-size:12.5px;color:var(--muted);line-height:1.3}
+.kpi b{font-family:var(--f-mono);font-weight:600;font-size:21px;line-height:1.2;color:var(--navy)}
+.kpi b small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+.kpi em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.kpi.hl{border-color:var(--line);box-shadow:inset 0 3px 0 var(--navy)}
+.kpi.bad{border-color:var(--no)} .kpi.bad b{color:var(--no)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.wa{background:var(--wabg);color:var(--wa)}.pill.no{background:var(--nobg);color:var(--no)}
+
+/* tablas */
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+th.l,td.l{text-align:left;white-space:normal}
+tr.sel td{background:var(--okbg)}
+tr.grp td{background:var(--surface2);font-weight:700;font-family:var(--f-disp);text-align:left;color:var(--navy)}
+td.mut{color:var(--muted)}
+
+/* memoria */
+.memo{display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.step:first-child{border-top:0}
+.step .n{width:26px;height:26px;border-radius:50%;background:var(--navy);color:var(--onnavy);font:600 12px var(--f-mono);display:grid;place-items:center}
+.step h4{font-size:16px;font-weight:700}
+.step .q{margin:3px 0 6px;color:var(--muted);font-size:14px;max-width:72ch}
+.step .q b{color:var(--ink);font-weight:600}
+.eq{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:17px;line-height:2.1;overflow-x:auto;white-space:nowrap;padding:1px 0}
+.eq .r{font-weight:700}
+.eq .ad{display:inline-block;margin-left:10px;padding:0 8px;border-radius:5px;background:var(--okbg);color:var(--ok);font:700 12.5px/1.8 var(--f-body)}
+.eq .bd{display:inline-block;margin-left:10px;padding:0 8px;border-radius:5px;background:var(--nobg);color:var(--no);font:700 12.5px/1.8 var(--f-body)}
+.eq .mu{color:var(--muted);font-size:14px;font-family:var(--f-body)}
+.norma{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .15em;line-height:1.25}
+.fr>span:first-child{border-bottom:1px solid currentColor;padding:0 .2em}.fr>span:last-child{padding:0 .2em}
+.sq{border-top:1px solid currentColor;padding:0 .1em}
+.memosec{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:16px 0 0}
+.note{background:var(--surface2);border-left:3px solid var(--link);padding:10px 12px;border-radius:0 6px 6px 0;font-size:14px;color:var(--ink)}
+.note.wa{border-left-color:var(--wa);background:var(--wabg)}
+.warns{display:flex;flex-direction:column;gap:6px}
+svg text{font-family:var(--f-body)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+/* resumen */
+.flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;counter-reset:f}
+@media (max-width:800px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:440px){.flow{grid-template-columns:minmax(0,1fr)}}
+.fstep{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px;cursor:pointer;text-align:left;min-width:0}
+.fstep:hover{border-color:var(--link);border-top-color:var(--accent)}
+.fstep .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fstep .k{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.fstep h4{font-size:17px;color:var(--navy)}
+.fstep .big{font-family:var(--f-mono);font-size:26px;font-weight:600;line-height:1.1}
+.fstep .big small{font-size:14px;color:var(--muted)}
+.fstep p{margin:0;font-size:13.5px;color:var(--muted)}
+.fstep .go{font-size:13px;color:var(--link);font-weight:600;margin-top:auto}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:18px;align-items:start}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:960px){.two{grid-template-columns:minmax(0,1fr)}}
+.foot{color:var(--muted);font-size:13px;border-top:3px solid var(--navy);padding-block:18px 28px;background:var(--surface2)}
+.foot .wrap{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:6px;font-size:14px;z-index:40}
+.team{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.team h4{font-size:15px;color:var(--navy);border-bottom:2px solid var(--accent);padding-bottom:4px;margin-bottom:6px}.team ul{list-style:none;margin:0;padding:0}.team li{padding:3px 0;font-size:14.5px}.team u{text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:3px;font-weight:600;color:var(--navy)}
+ul.clean{margin:6px 0 0;padding-left:18px}ul.clean li{margin:3px 0}
+.refs li{margin:4px 0}
+a{color:var(--link)}
+
+/* tablas editables */
+.et{min-width:100%}
+.et td{padding:4px 5px;vertical-align:middle}
+.et input,.et select{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:5px 6px;width:100%;min-width:0}
+.et input[type=number]{text-align:right;min-width:64px}
+.et input[type=checkbox]{width:18px;height:18px}
+.et input:focus,.et select:focus{border-color:var(--link);outline:none}
+.et td.res{font-family:var(--f-mono);font-size:13px;white-space:nowrap}
+.et .del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px}
+.et .del:hover{color:var(--no);background:var(--nobg)}
+.etbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.etbar select{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface);min-width:240px;max-width:100%}
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:4px 10px;align-items:center;font-size:13.5px}
+.bar .tr{grid-column:1/-1;height:10px;background:var(--surface2);border-radius:5px;position:relative;overflow:hidden}
+.bar .tr i{position:absolute;inset:0 auto 0 0;border-radius:5px}
+.bar b{font-family:var(--f-mono);font-weight:600;text-align:right}
+.tip{font-size:12.5px;color:var(--muted);margin:0 0 8px;max-width:80ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  body{background:#fff;color:#000}
+  body::before,.nav,.actions,.form details.adv,.foot,.toast{display:none!important}
+  .hdr{box-shadow:none}
+  .cols{grid-template-columns:minmax(0,1fr)}.form{position:static}
+  .card,.step,fieldset{break-inside:avoid}
+  .panel[hidden]{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="wrap">
+    <div class="logo"><img src="img/logo-eci.png" alt="Escuela Colombiana de Ingeniería Julio Garavito"></div>
+    <div class="ttl">
+      <small>Subestaciones Eléctricas 2026-2 · Herramienta de diseño</small>
+      <h1 id="hT">S/E Termales <em>115 kV</em></h1>
+      <p>Calcula el diseño de una subestación paso a paso: aislamiento, aisladores, distancias, conductores, equipos, malla de tierra y apantallamiento. Sirve para cualquier subestación; trae cargado el caso base S/E Termales 115 kV.</p>
+    </div>
+    <div class="ficha" id="ficha" aria-label="Datos de la subestación"></div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Módulos">
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" data-tab="resumen" aria-selected="true">Resumen</button>
+    <button class="tab" role="tab" data-tab="aislamiento" aria-selected="false"><i class="st" id="st-ais"></i>Aislamiento</button>
+    <button class="tab" role="tab" data-tab="aisladores" aria-selected="false"><i class="st" id="st-ins"></i>Aisladores</button>
+    <button class="tab" role="tab" data-tab="distancias" aria-selected="false"><i class="st" id="st-dis"></i>Distancias</button>
+    <button class="tab" role="tab" data-tab="conductores" aria-selected="false"><i class="st" id="st-con"></i>Conductores</button>
+    <button class="tab" role="tab" data-tab="equipos" aria-selected="false"><i class="st" id="st-eq"></i>Equipos</button>
+    <button class="tab" role="tab" data-tab="malla" aria-selected="false"><i class="st" id="st-mal"></i>Malla de tierra</button>
+    <button class="tab" role="tab" data-tab="apantallamiento" aria-selected="false"><i class="st" id="st-apa"></i>Apantallamiento</button>
+    <button class="tab" role="tab" data-tab="configuraciones" aria-selected="false">Configuraciones</button>
+    <button class="tab" role="tab" data-tab="normas" aria-selected="false"><i class="st" id="st-val"></i>Normas</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ================= RESUMEN ================= -->
+<section class="panel" id="p-resumen">
+  <div class="phead">
+    <div><p class="eyebrow">Resumen del diseño</p><h2>Así va el diseño de la subestación</h2>
+    <p>Cada módulo calcula una parte del diseño y le pasa su resultado al siguiente: el pararrayos fija el BIL, el BIL fija los aisladores, las distancias y los equipos, y las alturas del patio definen el apantallamiento. Toque una tarjeta para ver el cálculo completo.</p></div>
+    <div class="actions"><button class="btn" id="btnNew" type="button">Nuevo proyecto</button><button class="btn" id="btnOpen" type="button" title="Carga un proyecto guardado antes en un archivo .json">Abrir proyecto (.json)</button><button class="btn" id="btnSave" type="button" title="Descarga todos los datos del proyecto en un archivo .json">Guardar proyecto (.json)</button><button class="btn" id="btnResetAll" type="button">Caso base S/E Termales</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button><input type="file" id="fileOpen" accept=".json,application/json" hidden></div>
+  </div>
+  <details class="card" id="proyCard"><summary>Datos del proyecto <small id="proyHint"></small></summary>
+    <p class="tip" style="margin-top:10px">Los cálculos se actualizan solos con cada dato. «Diseñar» además revisa los equipos de catálogo (pararrayos, envolvente, aisladores, conductores) y cambia los que no cumplan por el primero que sí cumple.</p>
+    <div class="grid" id="fProy" style="margin-top:12px"></div>
+    <div class="etbar" style="margin-top:14px"><button class="btn pri" id="btnDis" type="button">Diseñar con estos datos</button></div></details>
+  <div class="flow" id="flow"></div>
+  <div id="golazo"></div>
+  <div class="two">
+    <div class="card"><h3 id="cmpTitle"></h3>
+      <div class="scroll"><table id="tCmp"></table></div>
+      <p class="norma" id="cmpNote" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card"><h3>Pendientes y alertas</h3><div class="warns" id="alerts"></div></div>
+  </div>
+</section>
+
+<!-- ================= AISLAMIENTO ================= -->
+<section class="panel" id="p-aislamiento" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 1 · IEC 60071-1/2 · IEC 60099-4/5</p><h2>Coordinación de aislamiento</h2>
+    <p>Escoge el pararrayos y el nivel de aislamiento (BIL) de los equipos con un margen de protección mínimo. Como el pararrayos protege solo hasta cierta distancia, se puede usar una mezcla de dos niveles: el normal para los equipos cercanos y uno mayor para los lejanos.</p></div>
+    <div class="actions"><button class="btn copyMemo" data-memo="memoAis" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Sitio y sistema</legend><div class="grid" id="fAisSys"></div>
+        <details class="adv"><summary>Factores del sistema (avanzado)</summary><div class="grid" id="fAisAdv" style="margin-top:10px"></div></details></fieldset>
+      <fieldset><legend>Pararrayos</legend><div class="grid" id="fAisDps"></div></fieldset>
+      <fieldset><legend>Envolvente del pararrayos</legend><div class="grid" id="fAisHou"></div></fieldset>
+      <fieldset><legend>Niveles de aislamiento</legend><div class="grid" id="fAisBil"></div></fieldset>
+      <fieldset><legend>Contaminación</legend><div class="grid" id="fAisPol"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vAis"></div>
+      <div class="kpis" id="kAis"></div>
+      <div class="card"><h3>Iteración del BIL <small>IEC 60071-1</small></h3><div class="scroll"><table id="tAis"></table></div></div>
+      <div class="card"><h3>Margen de protección según la distancia al pararrayos</h3><div id="chAis"></div>
+        <div class="scroll" style="margin-top:10px"><table id="tMP"></table></div></div>
+      <div class="card"><h3>Verificación del pararrayos</h3><div class="scroll"><table id="tDps"></table></div></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoAis"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AISLADORES ================= -->
+<section class="panel" id="p-aisladores" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 2 · IEC TS 60815 · IEC 60071-2 · IEC 61109</p><h2>Cadenas de aisladores</h2>
+    <p>Dimensiona las cadenas que sostienen las barras y rematan las líneas: fuga por contaminación, distancia de arco, tensiones de flameo y soportadas corregidas por altitud, y carga mecánica.</p></div>
+    <div class="actions"><button class="btn copyMemo" data-memo="memoIns" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Requisitos</legend><div class="grid" id="fInsReq"></div></fieldset>
+      <fieldset><legend>Aislador</legend><div class="grid" id="fInsAis"></div></fieldset>
+      <fieldset><legend>Carga mecánica</legend><div class="grid" id="fInsMec"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vIns"></div>
+      <div class="kpis" id="kIns"></div>
+      <div class="card"><h3>Verificaciones <small>capacidad frente a lo exigido</small></h3><div id="barIns"></div><div class="scroll" style="margin-top:12px"><table id="tIns"></table></div></div>
+      <div class="card"><h3>Comparación de aisladores del catálogo <small>con los mismos requisitos</small></h3><div class="scroll"><table id="tInsCmp"></table></div></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoIns"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DISTANCIAS ================= -->
+<section class="panel" id="p-distancias" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 3 · IEC 60071 · IEC 61936-1 · RETIE · Mejía Villegas</p><h2>Distancias eléctricas</h2>
+    <p>A qué distancia debe estar cada parte energizada de las estructuras, de las otras fases, de las personas y de los vehículos; y a qué altura van equipos, barras y llegadas de línea. Al final se comprueba la disposición del plano.</p></div>
+    <div class="actions"><button class="btn" id="btnCopyCons" type="button">Copiar tabla</button><button class="btn copyMemo" data-memo="memoDis" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Datos de partida</legend><div class="grid" id="fDisBase"></div>
+        <details class="adv"><summary>Parámetros del método (avanzado)</summary><div class="grid" id="fDisAdv" style="margin-top:10px"></div></details></fieldset>
+      <fieldset><legend>Barraje y flecha</legend><div class="grid" id="fDisBar"></div></fieldset>
+      <fieldset><legend>Disposición adoptada (plano)</legend><div class="grid" id="fDisPlan"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vDis"></div>
+      <div class="kpis" id="kDis"></div>
+      <div class="card"><h3>Corte de una bahía a escala</h3><div class="scroll" id="svgDis"></div>
+        <div class="legend"><span><i class="sw" style="background:var(--live)"></i>Partes energizadas</span><span><i class="sw" style="background:var(--zone)"></i>Zona de riesgo (valor básico)</span><span><i class="sw" style="background:var(--safe)"></i>Zona de circulación de personal (2,25 m)</span></div></div>
+      <div class="card"><h3>Verificaciones</h3><div class="scroll"><table id="tDisChk"></table></div></div>
+      <div class="card"><h3>Consolidado de distancias</h3><div class="scroll"><table id="tCons"></table></div><p class="norma" id="consNote" style="margin:8px 0 0"></p></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoDis"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONDUCTORES ================= -->
+<section class="panel" id="p-conductores" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 4 · IEEE Std 738 · Peek · IEC 60865-1</p><h2>Conductores y barrajes</h2>
+    <p>Comprueba el conductor de las barras: que lleve la corriente sin calentarse de más, que no produzca efecto corona, que aguante el cortocircuito y que su tendido sea razonable. También revisa las conexiones de cada bahía.</p></div>
+    <div class="actions"><button class="btn copyMemo" data-memo="memoCon" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Conductor de las barras</legend><div class="grid" id="fConCon"></div></fieldset>
+      <fieldset><legend>Capacidad de corriente</legend><div class="grid" id="fConAmp"></div>
+        <details class="adv"><summary>Condiciones térmicas (avanzado)</summary><div class="grid" id="fConAdv" style="margin-top:10px"></div></details></fieldset>
+      <fieldset><legend>Corona y cortocircuito</legend><div class="grid" id="fConCc"></div></fieldset>
+      <fieldset><legend>Vano y tendido</legend><div class="grid" id="fConMec"></div></fieldset>
+      <fieldset><legend>Conexiones de bahía</legend><div class="grid" id="fConCx"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vCon"></div>
+      <div class="kpis" id="kCon"></div>
+      <div class="card"><h3>Verificaciones</h3><div class="scroll"><table id="tCon"></table></div></div>
+      <div class="card"><h3>Capacidad de corriente según la temperatura del conductor <small>IEEE 738, por fase</small></h3><div id="chCon"></div>
+        <div class="legend"><span><i class="sw" style="background:var(--chart1)"></i>Capacidad de la fase</span><span><i class="sw" style="background:var(--no)"></i>Corriente de diseño</span></div></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoCon"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= EQUIPOS ================= -->
+<section class="panel" id="p-equipos" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 5 · IEC 62271-1 · IEC 60909 · IEC 60071-2</p><h2>Selección de equipos</h2>
+    <p>Corrientes de diseño y asignadas, nivel de cortocircuito, nivel de aislamiento que le toca a cada equipo según su distancia al pararrayos más cercano y requisitos que se piden al fabricante.</p></div>
+    <div class="actions"><button class="btn copyMemo" data-memo="memoEq" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Transformación y circuitos</legend><div class="grid" id="fEqI"></div></fieldset>
+      <fieldset><legend>Cortocircuito</legend><div class="grid" id="fEqCc"></div></fieldset>
+      <fieldset><legend>Seccionador de apertura central</legend><div class="grid" id="fEqSec"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vEq"></div>
+      <div class="kpis" id="kEq"></div>
+      <div class="card"><h3>Corrientes de diseño y valores asignados</h3><div class="scroll"><table id="tEqI"></table></div></div>
+      <div class="card"><h3>Nivel de aislamiento de cada equipo según su distancia al pararrayos</h3>
+        <p class="tip">Escriba el recorrido de conductor desde el pararrayos más cercano hasta cada equipo (fase más lejana). La herramienta calcula el margen de protección con cada nivel y asigna el menor que cumple.</p>
+        <div id="chEq"></div><div class="scroll" style="margin-top:10px" id="etEq"></div></div>
+      <div class="card"><h3>Equipos de maniobra del proyecto <small>según la configuración</small></h3><div class="scroll"><table id="tEqMan"></table></div></div>
+      <div class="card"><h3>Requisitos que se piden a cada nivel de equipo</h3><div class="scroll"><table id="tEqReq"></table></div></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoEq"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MALLA ================= -->
+<section class="panel" id="p-malla" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 6 · IEEE Std 80-2013</p><h2>Malla de puesta a tierra</h2>
+    <p>Comprueba que, durante una falla a tierra, una persona en el patio no reciba una tensión de toque o de paso peligrosa. Los supuestos del diseño se ponen a prueba al final de la página.</p></div>
+    <div class="actions"><button class="btn copyMemo" data-memo="memoMal" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Falla a tierra</legend><div class="grid" id="fMalFal"></div></fieldset>
+      <fieldset><legend>Factor de reparto Sf</legend><div class="grid" id="fMalSf"></div></fieldset>
+      <fieldset><legend>Suelo y persona</legend><div class="grid" id="fMalSue"></div></fieldset>
+      <fieldset><legend>Geometría de la malla</legend><div class="grid" id="fMalGeo"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vMal"></div>
+      <div class="kpis" id="kMal"></div>
+      <div class="warns" id="wMal"></div>
+      <div class="pair">
+        <div class="card"><h3>Planta de la malla</h3><div id="svgMal"></div></div>
+        <div class="card"><h3>Efecto del espaciamiento <small>% del límite tolerable</small></h3><div id="chMal"></div>
+          <div class="legend"><span><i class="sw" style="background:var(--chart1)"></i>Tensión de malla (toque)</span><span><i class="sw" style="background:var(--chart2)"></i>Tensión de paso</span></div></div>
+      </div>
+      <div class="card"><h3>Verificación</h3><div class="scroll"><table id="tMal"></table></div></div>
+      <div class="card" id="mejMal"></div>
+      <div class="card"><h3>Supuestos del diseño y sensibilidad</h3><div id="sensMal"></div></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoMal"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= APANTALLAMIENTO ================= -->
+<section class="panel" id="p-apantallamiento" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo 7 · Mejía Villegas cap. 5 · IEEE Std 998 · NTC 4552</p><h2>Apantallamiento contra rayos</h2>
+    <p>Comprueba que los cables de guarda intercepten los rayos capaces de hacer flamear el aislamiento. El criterio de diseño es el modelo electrogeométrico (esfera rodante); los ángulos fijos son la verificación complementaria.</p></div>
+    <div class="actions"><button class="btn copyMemo" data-memo="memoApa" type="button">Copiar memoria</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div class="cols">
+    <div class="form">
+      <fieldset><legend>Cables de guarda</legend><div class="grid" id="fApaCg"></div></fieldset>
+      <fieldset><legend>Exposición del sitio</legend><div class="grid" id="fApaExp"></div></fieldset>
+      <fieldset><legend>Edificio con puntas captadoras</legend><div class="grid" id="fApaMas"></div></fieldset>
+    </div>
+    <div class="panel">
+      <div id="vApa"></div>
+      <div class="kpis" id="kApa"></div>
+      <div class="card"><h3>Corte del patio con la esfera rodante <small>a escala</small></h3><div class="scroll" id="svgApa"></div>
+        <div class="legend"><span><i class="sw" style="background:var(--ok)"></i>Cables de guarda</span><span><i class="sw" style="background:var(--live)"></i>Elementos energizados</span><span><i class="sw" style="background:var(--link)"></i>Esfera rodante (radio Sm)</span><span><i class="sw" style="background:var(--wa)"></i>Rectas de 45°</span></div></div>
+      <div class="card"><h3>1 · Distancia de descarga crítica de cada conductor</h3>
+        <p class="tip">Cada fila es un conductor del patio. Con su altura, su diámetro y su aislamiento (BIL del equipo que lo sostiene o CFO de su cadena) se obtiene la corriente crítica y el radio de la esfera.</p>
+        <div class="scroll" id="etSm"></div></div>
+      <div class="card"><h3>2 · Verificación de cada elemento</h3>
+        <p class="tip">Cómo se apoya la esfera: entre dos cables de guarda iguales, entre dos cables de distinta altura o entre un cable y el suelo. x es la distancia horizontal desde el primer cable; h, la altura del cable en ese punto (ya descontada su flecha).</p>
+        <div class="scroll" id="etVer"></div></div>
+      <div class="card"><h3>3 · Edificio protegido con cuatro puntas captadoras</h3><div class="scroll"><table id="tMas"></table></div></div>
+      <div class="card"><h3>Memoria de cálculo</h3><div class="memo" id="memoApa"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONFIGURACIONES ================= -->
+<section class="panel" id="p-configuraciones" hidden>
+  <div class="phead">
+    <div><p class="eyebrow">Módulo de estudio · Esquemas de barras</p><h2>Configuraciones de la subestación</h2>
+    <p>Compara los esquemas de barras más usados: cuántos equipos pide cada uno para los circuitos del proyecto y qué pasa cuando falla una barra o hay que sacar un interruptor a mantenimiento. Elija aquí la configuración del proyecto.</p></div>
+    <div class="actions"><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button></div>
+  </div>
+  <div id="vCfg"></div>
+  <div class="card"><h3>Comparación <small id="cfgN"></small></h3><div class="scroll"><table id="tCfg"></table></div>
+    <p class="norma" style="margin:8px 0 0">Conteo con los circuitos equipados del proyecto y con sus opciones de by-pass y de seccionamiento de barras (se eligen en los datos del proyecto). Las calificaciones son comparativas, según Mejía Villegas, <i>Subestaciones de alta y extra alta tensión</i>, y la práctica habitual.</p></div>
+  <div class="cfgs" id="cfgCards"></div>
+</section>
+
+<!-- ================= NORMAS ================= -->
+<section class="panel" id="p-normas" hidden>
+  <div class="phead"><div><p class="eyebrow">Fuentes</p><h2>Normas, validación y créditos</h2>
+    <p>Las normas en que se basa cada módulo, la comprobación del motor de cálculo contra ejemplos publicados (IEEE 80, IEEE 738), y los catálogos incluidos.</p></div></div>
+  <div id="vVal"></div>
+  <div class="card"><h3>Validación del motor de cálculo</h3><div class="scroll"><table id="tVal"></table></div></div>
+  <div class="two">
+    <div class="card"><h3>Normas y referencias</h3>
+      <ol class="refs">
+        <li><b>RETIE</b>, Resolución 40117 de 2024 del Ministerio de Minas y Energía, modificada por la Resolución 40284 de 2026 (Libro 3): Tablas 3.22.1.a y 3.22.1.c, distancias de seguridad en subestaciones.</li>
+        <li><b>IEC 60071-1 y 60071-2</b>: niveles de aislamiento normalizados, coordinación de aislamiento y distancias en el aire.</li>
+        <li><b>IEC 60099-4 y 60099-5</b>: pararrayos de óxido metálico, selección y aplicación.</li>
+        <li><b>IEC TS 60815</b>: selección de aisladores por contaminación (distancia de fuga específica).</li>
+        <li><b>IEC 61936-1</b>: instalaciones de más de 1 kV en corriente alterna.</li>
+        <li><b>IEC 62271-1</b>: especificaciones comunes de la aparamenta de alta tensión.</li>
+        <li><b>IEC 60909</b>: cálculo de corrientes de cortocircuito.</li>
+        <li><b>IEEE Std 738</b>: relación corriente–temperatura de conductores aéreos desnudos.</li>
+        <li><b>IEC 60865-1</b>: efectos térmicos y mecánicos de las corrientes de cortocircuito.</li>
+        <li><b>IEEE Std 80-2013</b>: seguridad en la puesta a tierra de subestaciones. <b>IEEE Std 81</b>: medición de resistividad y de la resistencia de la malla. Mejoramiento del terreno: J. S. Ramírez y E. A. Cano, <i>Sistemas de puesta a tierra</i>, Universidad Nacional, 2010.</li>
+        <li><b>IEEE Std 998</b> y <b>NTC 4552-1/3</b>: apantallamiento y protección contra rayos.</li>
+        <li>S. Mejía Villegas, <i>Subestaciones de alta y extra alta tensión</i>, 2.ª ed., 2003 (alturas de diseño, cap. 5 de apantallamiento).</li>
+        <li>J. C. Romero Escobar, <i>Diseño de subestaciones eléctricas</i>, ECI, 2014, cap. 5.</li>
+        <li>Apuntes del curso Subestaciones Eléctricas 2026-2, ECI.</li>
+      </ol>
+    </div>
+    <div class="card"><h3>Catálogos incluidos <small>datos transcritos de catálogos públicos</small></h3>
+      <ul class="clean" id="catList"></ul>
+      <p class="norma" style="margin:10px 0 0">Los valores son los publicados en la edición citada. Confirme siempre con la ficha vigente del fabricante. Para cualquier otro equipo use la opción «Personalizado» de cada módulo.</p>
+    </div>
+  </div>
+  <div class="card"><h3>Caso base S/E Termales 115 kV <small>datos del enunciado del proyecto</small></h3>
+      <ul class="clean">
+        <li><b>Sistema</b>: tensión de barras 115 kV, puesta a tierra sólida, 60 Hz, cortocircuito de 30 kA, configuración de barraje doble principal y transferencia.</li>
+        <li><b>Circuitos</b>: 3 de línea, 2 de transformador y 1 de reserva sin equipar.</li>
+        <li><b>Transformación</b>: autotransformadores monofásicos 230/√3 (+10 % −15 %) / 115/√3 / 13,8 kV, 35/40/45 MVA ONAN/ONAF/OFAF, conexión Y–Y–Δ.</li>
+        <li><b>Sitio</b>: Santa Rosa de Cabal, 1800 msnm, resistividad del terreno de 800 Ω·m, contaminación alta, sismicidad alta, lluvia alta, nivel ceráunico similar al de Manizales, temperaturas de 12, 18 y 26 °C.</li>
+        <li>Los demás valores del caso base (disposición del patio, catálogos elegidos, geometría de la malla y del apantallamiento) son datos de diseño que se pueden cambiar en cada módulo.</li>
+      </ul>
+  </div>
+  <div class="card"><h3>Equipo del proyecto <small>Subestaciones Eléctricas 2026-2 · Docente: E.E. MSc. Javier Andrés Ruiz Garzón</small></h3>
+    <div class="team"><div><h4>Grupo 1</h4><ul><li>Julian Rubiano</li><li>Óscar Julián Limas</li><li>Danna Guerrero</li><li>Michael Duarte</li><li>Ángel Daniel Cepeda</li></ul></div><div><h4>Grupo 2</h4><ul><li>Juan Guillermo Nuñez</li><li>Diego Andres Cely</li><li>Juan Diego García</li><li>Stiven Montaño</li><li>David Durán</li></ul></div><div><h4>Grupo 3</h4><ul><li>Camilo Andrés Palomar</li><li>Daniel Andrés Chávez</li><li>María Fernanda Chala</li><li>Marlon Nivia</li><li>Santiago Alfonso Tinoco</li></ul></div><div><h4>Grupo 4</h4><ul><li>Ingrid Quiroga</li><li>Andres Coa</li><li>Yuli Leon</li></ul></div></div>
+    <p class="norma" style="margin:10px 0 0">Autores de esta herramienta. Ángel Daniel Cepeda: módulo de aislamiento. Óscar Julián Limas: módulo de distancias. Camilo Andrés Palomar: módulo de malla de puesta a tierra. Santiago Alfonso Tinoco: integración.</p>
+  </div>
+</section>
+</main>
+
+<footer class="foot"><div class="wrap"><span>Herramienta de diseño de subestaciones · caso base S/E Termales 115 kV · Escuela Colombiana de Ingeniería Julio Garavito · Subestaciones Eléctricas 2026-2</span><span>Docente: E.E. MSc. Javier Andrés Ruiz Garzón</span></div></footer>
+<div class="toast" id="toast" hidden></div>
+
+<script src="catalogos.js"></script>
+<script src="calculos.js"></script>
+<script src="nucleo.js"></script>
+<script src="modulos.js"></script>
+</body>
+</html>
