@@ -26,7 +26,10 @@ function selO(mod,selKey,valKey,label,opts,unit,opt={}){
   return [sel(mod,selKey,label,()=>{const o=typeof opts==="function"?opts():opts;return [...o,[OTRO,"Otro valor…"]]},{wide:opt.wide,hint:opt.hint}),
           num(mod,valKey,"Valor","",{unit,show:()=>S[mod][selKey]===OTRO,step:opt.step,hint:opt.hint2})].map(f=>({...f,unit:f.unit||unit}));
 }
-const UN_OPTS=()=>groupBy(SUBE.UN_CO,x=>x[1],x=>[String(x[0]),kv(x[0])]);
+/* Patios desde 34,5 kV: los catálogos incluidos son de pararrayos y aisladores de estación */
+const UN_OPTS=()=>groupBy(SUBE.UN_CO.filter(x=>x[0]>=34.5),x=>x[1],x=>[String(x[0]),kv(x[0])]);
+/* Pareja usual de tensiones de transformación en Colombia para cada tensión del patio */
+const TR_PAR={500:230,230:115,220:110,115:230,110:220,66:13.8,57.5:13.8,44:13.8,34.5:13.8};
 const S_OPTS=()=>[{g:"Serie R10 (IEC 60076-1)",o:SUBE.S_R10.map(v=>[String(v),`${fmU(v)} MVA`])},{g:"Usuales en el STN y STR",o:SUBE.S_CO.map(v=>[String(v),`${fmU(v)} MVA`])}];
 const SEL_PAIRS={unSel:"un",v1Sel:"v1",v3Sel:"v3",sSel:"S1"};
 /* Configuración y by-pass en una sola lista: «bs» o «bs+bp» */
@@ -38,7 +41,7 @@ const cfgNombre=(k,bp)=>CFG[k].n+(CFG[k].bp?(bp?" con by-pass":" sin by-pass"):"
    ============================================================ */
 Object.assign(FORMS,{
   fProy:[txt("proy","nombre","Nombre de la subestación",{wide:true}),txt("proy","lugar","Ubicación",{wide:true}),
-    ...selO("proy","unSel","un","Tensión nominal del patio que se diseña",UN_OPTS,"kV",{wide:true,hint:()=>`Tensiones normalizadas en Colombia. Um = ${kv(S.g.um)} (IEC 60038).`}),
+    ...selO("proy","unSel","un","Tensión nominal del patio que se diseña",UN_OPTS,"kV",{wide:true,hint:()=>`Tensiones normalizadas en Colombia, desde 34,5 kV. Um = ${kv(S.g.um)} (IEC 60038).`}),
     ...selO("proy","v1Sel","v1","Tensión del otro devanado",()=>[["0","Ninguna (sin transformación)"],...SUBE.UN_CO.map(x=>[String(x[0]),kv(x[0])])],"kV",{hint:"Del transformador o autotransformador."}),
     ...selO("proy","v3Sel","v3","Terciario",()=>[["0","Sin terciario"],...[11.4,13.2,13.8,34.5,44].map(v=>[String(v),kv(v)])],"kV"),
     sel("proy","trTipo","Tipo de transformador",Object.entries(SUBE.TR_TIPO).map(([k,v])=>[k,v[0]]),{wide:true}),
@@ -59,7 +62,7 @@ Object.assign(FORMS,{
     sel("ais","npmI","Corriente del impulso de maniobra",[["0","0,5 kA"],["1","1 kA"],["2","2 kA"]],{num:true,show:()=>S.ais.dpsCat!=="man",hint:"IEC 60099-4: 0,5 kA hasta 145 kV."}),
     num("ais","ur","Tensión asignada Ur","kV",{show:()=>S.ais.dpsCat==="man"}),num("ais","uc","Operación continua Uc","kV",{show:()=>S.ais.dpsCat==="man"}),
     num("ais","npr","Protección al rayo (10 kA)","kV",{show:()=>S.ais.dpsCat==="man"}),num("ais","npm","Protección a maniobra","kV",{show:()=>S.ais.dpsCat==="man"})],
-  fAisHou:[sel("ais","hous","Envolvente",()=>[...(calcAis(S.g,S.ais).sie3EL2?CAT.HOUS.map(h=>[h.id,`${h.n} · ${h.li} kV · fuga ${h.fuga} mm`]):[]),["custom","Personalizada (datos de la ficha)"]],{wide:true,hint:()=>calcAis(S.g,S.ais).sie3EL2?"Siemens 3EL2: envolventes del catálogo (p. 45).":"Para otros fabricantes escriba los datos de la envolvente."}),
+  fAisHou:[sel("ais","hous","Envolvente",()=>[...(calcAis(S.g,S.ais).sie3EL2?CAT.HOUS.map(h=>[h.id,`${h.n} · ${h.li} kV · fuga ${h.fuga} mm`]):[["cat","La estándar del catálogo para esa Ur (sin verificar aparte)"]]),["custom","Personalizada (datos de la ficha)"]],{wide:true,hint:()=>calcAis(S.g,S.ais).sie3EL2?"Siemens 3EL2: envolventes del catálogo (p. 45).":"Este catálogo no publica envolventes por separado: se toma la estándar de esa Ur. Para verificarla, escriba sus datos como personalizada."}),
     num("ais","hBIL","Aislamiento pedido a la envolvente","kV BIL",{hint:()=>S.ais.estr==="dps"?"0 = el nivel normalizado siguiente al de los equipos.":"0 = el mayor BIL de los equipos."}),num("ais","hAC","60 Hz pedido a la envolvente","kV",{hint:"0 = el que corresponde a ese BIL."}),num("ais","sllReq","Carga de servicio requerida","N",{hint:"Referencia sísmica: 400 N."}),
     num("ais","cHli","Rayo de la envolvente","kV",{show:()=>S.ais.hous==="custom"}),num("ais","cHpf","60 Hz húmedo","kV",{show:()=>S.ais.hous==="custom"}),num("ais","cHfuga","Fuga","mm",{show:()=>S.ais.hous==="custom"}),num("ais","cHsll","SLL","N",{show:()=>S.ais.hous==="custom"})],
   fAisBil:[sel("ais","estr","Cuando la distancia al pararrayos no alcanza",[["mezcla","Dos niveles: BIL mayor solo en los equipos lejanos"],["general","Subir el BIL general (todos los equipos)"],["dps","Subir solo el BIL de la envolvente del DPS"]],{wide:true,
@@ -92,7 +95,10 @@ function elegirEnvolvente(){const a=calcAis(S.g,S.ais);if(!a.sie3EL2)return null
 HOOK.change=(m,k)=>{
   const p=S.proy;
   if(m==="proy"&&SEL_PAIRS[k]&&p[k]!==OTRO)p[SEL_PAIRS[k]]=+p[k];
-  if(m==="proy"&&(k==="unSel"||k==="un")){const um=SUBE.umDe(+p.un);if(um!==S.g.um){S.g.um=um;umCambio()}}
+  if(m==="proy"&&(k==="unSel"||k==="un")){const um=SUBE.umDe(+p.un);if(um!==S.g.um){S.g.um=um;umCambio()}
+    /* si la transformación queda incoherente con la nueva tensión, se propone la pareja usual */
+    if(+p.v1===+p.un&&TR_PAR[+p.un]){p.v1=TR_PAR[+p.un];p.v1Sel=String(p.v1)}
+    if(+p.v3>0&&(+p.v3>=Math.min(+p.un,+p.v1||Infinity)||+p.v3===+p.v1)){p.v3=0;p.v3Sel="0"}}
   if(m==="g"&&k==="um")umCambio();
   if(m==="proy"&&k==="cfgSel"){const [c,b]=String(p.cfgSel).split("+");p.cfg=c;p.bypass=b==="bp"?1:0}
   if(m==="proy"&&k==="cfg"&&!cfgOf().bp)p.bypass=0;
@@ -101,7 +107,8 @@ HOOK.change=(m,k)=>{
 HOOK.normalize=()=>{
   if(S.ais.dpsCat!=="man"&&!dpsHas(S.ais.dpsCat)){const alt=CAT.DPS.find(d=>dpsHas(d.id));S.ais.dpsCat=alt?alt.id:"man"}
   const a=calcAis(S.g,S.ais);if(a.dps&&a.dps.row)S.ais.dpsUr=a.ur;
-  if(S.ais.hous!=="custom"&&!a.sie3EL2)S.ais.hous="custom";
+  if(!a.sie3EL2&&S.ais.hous!=="custom")S.ais.hous="cat";
+  if(a.sie3EL2&&S.ais.hous==="cat")elegirEnvolvente();
   if(+S.ais.bil1>0&&!(BIL_IEC[S.g.um]||[]).includes(+S.ais.bil1))S.ais.bil1=0;
   if(+S.ais.bilG>0&&!bilOpts().includes(+S.ais.bilG))S.ais.bilG=0;
   if(S.ins.ins!=="custom"&&!AISL[S.ins.ins])S.ins.ins="custom";
@@ -117,45 +124,88 @@ HOOK.normalize=()=>{
    catálogo sin cumplir, se cambia por el primero que sí cumple.
    Las elecciones que el usuario hace a mano no se corrigen solas.
    ============================================================ */
-const SELK=new Set(["ais.dpsCat","ais.dpsUr","ais.npmI","ais.hous","ais.bil1","ais.bil2","ais.bilG","ais.estr","ins.ins","ins.nD","ins.extra","ins.cTipo","con.cond","con.nsub","con.cL","con.cT","mal.size","mal.mat","mal.conn"]);
+const SELK=new Set(["ais.dpsCat","ais.dpsUr","ais.npmI","ais.hous","ais.bil1","ais.bil2","ais.bilG","ais.estr","ins.ins","ins.nD","ins.extra","ins.cTipo","con.cond","con.nsub","con.cL","con.cT","con.nCL","con.nCT","mal.size","mal.mat","mal.conn","mal.mej"]);
 function ctxCon(){const D=calcDis(S.g,{...S.dis,BIL:S.dis.link&&RA&&RA.BIL?RA.BIL:S.dis.BIL}),I=corrientes();return{D,ctx:{Sf:S.con.link?D.sPlan:0,rig:S.dis.barra==="rig",Ilin:I.Ilin,Itr:I.Itr}}}
-function autoFix(){
+/* Conexión de bahía más liviana que lleva la corriente: menos conductores por fase y, entre ellos, la menor sección */
+function mejorConexion(I,cap){for(const r of [1.1,1])for(let n=1;n<=4;n++){const x=[...CAT.COND].sort((p,q)=>p.aAl-q.aAl).find(z=>cap(z,n)>=r*I);if(x)return [x,n]}return null}
+/* Malla: la retícula más abierta que cumple; el mejoramiento del terreno solo si con el suelo natural no se puede */
+function optimMal(p){
+  const Ds=[10,8,7,6,5,4.5,4,3.5,3,2.5],mejs=["no",p.mej&&p.mej!=="no"?p.mej:"favigel"];
+  for(const mj of mejs)for(const D of Ds){const q={...p,mej:mj,nCx:Math.max(2,Math.round(p.Ly/D)+1),nCy:Math.max(2,Math.round(p.Lx/D)+1)};if(calcMal(q).ok)return q}
+  return null;
+}
+/* Apantallamiento generado a partir del diseño (proyectos nuevos): alturas de distancias, BIL de aislamiento y cadena de aisladores */
+function genApa(){
+  const A=calcAis(S.g,S.ais),{D}=ctxCon(),I=calcIns(S.g,S.ins,A),BIL=A.BIL||550,w=I.w||2,Wb=S.dis.Wb>0?+S.dis.Wb:D.WbMin,ru=(x,s)=>Math.ceil(x/s-1e-9)*s;
+  const dBus=(CAT.COND.find(c=>c.id===S.con.cond)||{d:30}).d,dCx=(CAT.COND.find(c=>c.id===S.con.cL)||{d:28}).d;
+  const hT=D.heqA+0.8,hEq=D.heqA+1.3,h3=Math.max(ru(D.amarreA+D.SfA+D.DfeA,0.5),D.hremA),ph3=Math.max(D.SfA,D.sEqA||0);
+  S.apa.sm=[{n:"Conexiones de nivel 1",hmax:+(hT+0.1).toFixed(2),hmin:+hT.toFixed(2),dmm:dCx,base:"BIL",bil:BIL,w:+w.toFixed(2)},
+    {n:"Barras",hmax:+D.amarreA.toFixed(2),hmin:+D.hbLow.toFixed(2),dmm:dBus,base:"CFO",bil:BIL,w:+w.toFixed(2)},
+    {n:"Nivel 3: retorno y salidas",hmax:h3,hmin:+(h3-0.026*S.apa.vanoG).toFixed(2),dmm:dCx,base:"BIL",bil:BIL,w:+w.toFixed(2)}];
+  S.apa.ver=[{n:"Patio: fase central de nivel 3",sm:2,apo:"2c",kf:0.24,s:+Wb.toFixed(2),x:+(Wb/2).toFixed(2),de:+(h3-0.01).toFixed(2),beta:true},
+    {n:"Patio: fases extremas de nivel 3",sm:2,apo:"2c",kf:0.24,s:+Wb.toFixed(2),x:+Math.max(0,Wb/2-ph3).toFixed(2),de:+(h3-0.01).toFixed(2),beta:true},
+    {n:"Patio: barras",sm:1,apo:"2c",kf:0.67,s:+Wb.toFixed(2),x:+(Wb/2).toFixed(2),de:+D.amarreA.toFixed(2),beta:true},
+    {n:"Patio: equipos de nivel 1",sm:0,apo:"2c",kf:1,s:+Wb.toFixed(2),x:+(Wb/2).toFixed(2),de:+hEq.toFixed(2),beta:true},
+    {n:"Salida de línea: DPS",sm:0,apo:"cs",kf:0.35,s:0,x:4,de:+hEq.toFixed(2),beta:false}];
+  S.apa.s2d=+Wb.toFixed(2);
+  const setH=hG=>{S.apa.hG=hG;const f=S.apa.alfa*S.apa.vanoG;S.apa.ver.forEach(v=>{v.h1=+(hG-v.kf*f).toFixed(2);v.h2=v.apo==="2d"?v.h1:v.apo==="cs"?0:v.h1})};
+  for(let hG=ru(h3+1.5,0.5);hG<=h3+25;hG+=0.5){setH(hG);if(calcApa(S.g,S.apa).okPatio)return hG}
+  setH(ru(h3+4,0.5));return null;
+}
+/* Sube los cables de guarda (y las alturas de cable en la tabla de elementos) hasta que el patio quede protegido */
+function subirGuarda(){const p=S.apa,h0=+p.hG;for(let dh=0.5;dh<=15;dh+=0.5){const q={...p,hG:h0+dh,ver:p.ver.map(v=>({...v,h1:+v.h1+dh,h2:+v.h2>0?+v.h2+dh:+v.h2}))};
+  if(calcApa(S.g,q).okPatio){Object.assign(p,{hG:q.hG,ver:q.ver});return dh}}return 0}
+function autoFix(opt){
   const g=S.g,msg=[];let a=calcAis(g,S.ais);
-  /* 1. pararrayos */
-  if(a.dps&&a.dps.row&&!(a.okUr&&a.okUc&&a.okTOV)){const r=a.dps.lst.find(x=>{const t=calcAis(g,{...S.ais,dpsUr:x[0]});return t.okUr&&t.okUc&&t.okTOV});
-    if(r){msg.push(`Pararrayos: Ur ${a.ur} → ${r[0]} kV (el anterior no aguantaba la tensión de operación o la sobretensión temporal).`);S.ais.dpsUr=r[0]}}
+  /* 1. pararrayos: la menor Ur que aguanta la operación continua y la sobretensión temporal */
+  const urOk=x=>{const t=calcAis(g,{...S.ais,dpsUr:x[0]});return t.okUr&&t.okUc&&t.okTOV};
+  if(a.dps&&a.dps.row&&(opt||!(a.okUr&&a.okUc&&a.okTOV))){const r=a.dps.lst.find(urOk);
+    if(r&&r[0]!==a.ur){msg.push(`Pararrayos: Ur ${a.ur} → ${r[0]} kV (${opt?"la menor que cumple":"el anterior no aguantaba la tensión de operación o la sobretensión temporal"}).`);S.ais.dpsUr=r[0]}}
   /* 2. niveles de aislamiento */
   a=calcAis(g,S.ais);
-  if(!a.L1||!a.L1.ok){const k=a.estr==="general"?"bilG":"bil1";if(+S.ais[k]>0){msg.push(`BIL ${S.ais[k]} kV no da el margen pedido: se deja en automático.`);S.ais[k]=0}}
-  a=calcAis(g,S.ais);if(a.L2&&!a.L2.ok&&+S.ais.bil2>0){msg.push(`BIL ${S.ais.bil2} kV para equipos lejanos no cumple: se deja en automático.`);S.ais.bil2=0}
+  if(opt){["bil1","bil2","bilG"].forEach(k=>S.ais[k]=0)}
+  else{if(!a.L1||!a.L1.ok){const k=a.estr==="general"?"bilG":"bil1";if(+S.ais[k]>0){msg.push(`BIL ${S.ais[k]} kV no da el margen pedido: se deja en automático.`);S.ais[k]=0}}
+    a=calcAis(g,S.ais);if(a.L2&&!a.L2.ok&&+S.ais.bil2>0){msg.push(`BIL ${S.ais.bil2} kV para equipos lejanos no cumple: se deja en automático.`);S.ais.bil2=0}}
   /* 3. envolvente */
-  a=calcAis(g,S.ais);if(a.sie3EL2&&a.H&&!a.okH){const c=elegirEnvolvente();if(c)msg.push(`Envolvente del pararrayos: ${c[0]} → ${c[1]} (la anterior no daba el aislamiento o la fuga pedidos).`)}
-  /* 4. cadena de aisladores */
+  a=calcAis(g,S.ais);if(a.sie3EL2&&a.H&&(opt||!a.okH)){const c=elegirEnvolvente();if(c)msg.push(`Envolvente del pararrayos: ${c[0]} → ${c[1]} (${opt?"la menor que cumple":"la anterior no daba el aislamiento o la fuga pedidos"}).`)}
+  /* 4. cadena de aisladores: la más corta que cumple */
   a=calcAis(g,S.ais);let i=calcIns(g,S.ins,a);
-  if(!i.ok&&S.ins.ins!=="custom"){
-    if(i.A.tipo==="disco"&&(+S.ins.nD>0)){S.ins.nD=0;i=calcIns(g,S.ins,a);if(i.ok)msg.push(`Cadena: el número de discos pasa a automático (${i.nd} discos).`)}
-    if(!i.ok){const fam=x=>x.fam||x.tipo,f0=fam(i.A),largo=x=>x.tipo==="disco"?calcIns(g,{...S.ins,ins:x.id,nD:0},a).w:x.arco/1000;
-      const c=CAT.AIS.filter(x=>calcIns(g,{...S.ins,ins:x.id,nD:0},a).ok).sort((x,y)=>(fam(x)===f0?0:1)-(fam(y)===f0?0:1)||largo(x)-largo(y))[0];
-      if(c){msg.push(`Aislador: ${insName(i.A)} → ${insName(c)} (el anterior no cumplía ${i.chk.filter(x=>!x.ok).map(x=>x.k).join(", ")}).`);S.ins.ins=c.id;S.ins.nD=0}}}
-  /* 5. conductor de barras y conexiones */
+  if(S.ins.ins!=="custom"&&(opt||!i.ok)){
+    if(!opt&&i.A.tipo==="disco"&&(+S.ins.nD>0)){S.ins.nD=0;i=calcIns(g,S.ins,a);if(i.ok)msg.push(`Cadena: el número de discos pasa a automático (${i.nd} discos).`)}
+    if(opt||!i.ok){const fam=x=>x.fam||x.tipo,f0=fam(i.A),largo=x=>x.tipo==="disco"?calcIns(g,{...S.ins,ins:x.id,nD:0},a).w:x.arco/1000;
+      const c=CAT.AIS.filter(x=>calcIns(g,{...S.ins,ins:x.id,nD:0},a).ok).sort((x,y)=>opt?largo(x)-largo(y):(fam(x)===f0?0:1)-(fam(y)===f0?0:1)||largo(x)-largo(y))[0];
+      if(c&&(c.id!==S.ins.ins||+S.ins.nD>0)){msg.push(`Aislador: ${insName(i.A)} → ${insName(c)} (${opt?"la cadena más corta que cumple":"el anterior no cumplía "+i.chk.filter(x=>!x.ok).map(x=>x.k).join(", ")}).`);S.ins.ins=c.id;S.ins.nD=0}}}
+  /* 5. conductor de barras y conexiones: el más liviano que cumple */
   if(S.con.linkI)S.con.Idis=Math.round(corrientes().IBP*10)/10;
   const {ctx}=ctxCon();let c=calcCon(g,S.con,ctx);
-  if(S.con.cond!=="custom"&&!(c.okAmp&&c.okCor&&c.okTh)){const tipo=c.cat&&c.cat.tipo,cs=[...CAT.COND].sort((x,y)=>(x.tipo===tipo?0:1)-(y.tipo===tipo?0:1)||x.aAl-y.aAl);let pick=null;
-    for(let n=Math.max(1,+S.con.nsub||1);n<=4&&!pick;n++)for(const x of cs){const t=calcCon(g,{...S.con,cond:x.id,nsub:n},ctx);if(t.okAmp&&t.okCor&&t.okTh){pick=[x,n];break}}
-    if(pick){msg.push(`Conductor de barras: ${c.nombre.split(" · ").slice(0,2).join(" ")} → ${pick[1]>1?pick[1]+" × ":""}${pick[0].n.split(" · ").slice(0,2).join(" ")} (el anterior no llevaba la corriente, tenía corona o no aguantaba el cortocircuito).`);S.con.cond=pick[0].id;S.con.nsub=pick[1]}}
-  [["cL",ctx.Ilin,"línea"],["cT",ctx.Itr,"transformador"]].forEach(([k,I,t])=>{const cur=CAT.COND.find(x=>x.id===S.con[k]);if(!cur||!(I>0))return;
-    if(SUBE.ampCond(cur,g,S.con,S.con.Tc).I>=I)return;const x=[...CAT.COND].sort((p,q)=>p.aAl-q.aAl).find(z=>SUBE.ampCond(z,g,S.con,S.con.Tc).I>=I);
-    if(x){msg.push(`Conexión de bahía de ${t}: ${cur.id} → ${x.id} (no llevaba ${fm(I,0)} A).`);S.con[k]=x.id}});
-  /* 6. conductor de la malla */
+  if(S.con.cond!=="custom"&&(opt||!(c.okAmp&&c.okCor&&c.okTh))){const tipo=c.cat&&c.cat.tipo,cs=[...CAT.COND].sort((x,y)=>opt?x.aAl-y.aAl:(x.tipo===tipo?0:1)-(y.tipo===tipo?0:1)||x.aAl-y.aAl);let pick=null;
+    for(let n=opt?1:Math.max(1,+S.con.nsub||1);n<=4&&!pick;n++)for(const x of cs){const t=calcCon(g,{...S.con,cond:x.id,nsub:n},ctx);if(t.okAmp&&t.okCor&&t.okTh){pick=[x,n];break}}
+    if(pick&&(pick[0].id!==S.con.cond||pick[1]!==(+S.con.nsub||1))){msg.push(`Conductor de barras: ${c.nombre.split(" · ").slice(0,2).join(" ")} → ${pick[1]>1?pick[1]+" × ":""}${pick[0].n.split(" · ").slice(0,2).join(" ")} (${opt?"el más liviano que lleva la corriente, sin corona y con el cortocircuito":"el anterior no llevaba la corriente, tenía corona o no aguantaba el cortocircuito"}).`);S.con.cond=pick[0].id;S.con.nsub=pick[1]}}
+  [["cL","nCL",ctx.Ilin,"línea"],["cT","nCT",ctx.Itr,"transformación"]].forEach(([k,kn,I,t])=>{const cur=CAT.COND.find(x=>x.id===S.con[k]);if(!cur||!(I>0))return;
+    const n0=Math.max(1,+S.con[kn]||1),cap=(z,n)=>n*SUBE.ampCond(z,g,S.con,S.con.Tc).I;if(!opt&&cap(cur,n0)>=I)return;
+    const pick=mejorConexion(I,cap);if(pick&&(pick[0].id!==cur.id||pick[1]!==n0)){msg.push(`Conexión de bahía de ${t}: ${n0>1?n0+" × ":""}${cur.id} → ${pick[1]>1?pick[1]+" × ":""}${pick[0].id} (${opt?"la opción más liviana que lleva":"no llevaba"} ${fm(I,0)} A).`);S.con[k]=pick[0].id;S.con[kn]=pick[1]}});
+  /* 5b. equipos: corta duración con reserva frente a la falla a tierra */
+  if(opt&&!S.eq.ikMargen){const dD=ctxCon().D,e0=calcEq(g,S.proy,S.eq,a,dD);S.eq.ikMargen=true;const e1=calcEq(g,S.proy,S.eq,a,dD);if(e1.Ik!==e0.Ik)msg.push(`Equipos: corta duración de ${fm(e1.Ik,1)} kA (la falla a tierra de ${fm(S.eq.I1,2)} kA dejaba los de ${fm(e0.Ik,1)} kA al ${fm(100*S.eq.I1/e0.Ik,0)} %).`)}
+  /* 6. malla: conductor mínimo, retícula más abierta que cumple y mejoramiento del terreno solo si hace falta */
   if(S.mal.linkI){S.mal.If=S.eq.I1;S.mal.XR=S.eq.XR;S.mal.IfTipo="sim"}
-  const m=calcMal(S.mal);if(!m.okCond){const k=Object.keys(SIZES).find(z=>SIZES[z][1]>=m.Amin);if(k&&k!==S.mal.size){msg.push(`Conductor de la malla: ${SIZES[S.mal.size][0]} → ${SIZES[k][0]} (mínimo ${fm(m.Amin,1)} mm²).`);S.mal.size=k}}
+  let m=calcMal(S.mal);
+  {const k=Object.keys(SIZES).find(z=>SIZES[z][1]>=m.Amin);if(k&&k!==S.mal.size&&(opt||!m.okCond)){msg.push(`Conductor de la malla: ${SIZES[S.mal.size][0]} → ${SIZES[k][0]} (mínimo ${fm(m.Amin,1)} mm²).`);S.mal.size=k;m=calcMal(S.mal)}}
+  if(S.mal.mej!=="no"&&calcMal({...S.mal,mej:"no"}).ok&&!opt){msg.push(`Malla: con el suelo natural ya cumple, así que no hace falta mejorar el terreno.`);S.mal.mej="no";m=calcMal(S.mal)}
+  if(opt||!m.ok){const q=optimMal(S.mal);
+    if(q&&(q.nCx!==S.mal.nCx||q.nCy!==S.mal.nCy||q.mej!==S.mal.mej)){const r=calcMal(q);
+      msg.push(`Malla: retícula de ${fm(r.Dx,2)} × ${fm(r.Dy,2)} m${q.mej!=="no"?` con ${MEJ[q.mej].n} (con el suelo natural no se alcanza a cumplir)`:" con el suelo natural"}${S.mal.mej!=="no"&&q.mej==="no"?"; el mejoramiento del terreno no hace falta":""}.`);
+      Object.assign(S.mal,{nCx:q.nCx,nCy:q.nCy,mej:q.mej})}}
+  /* 7. apantallamiento */
+  if(opt){const h=genApa();msg.push(h?`Apantallamiento: cables de guarda a ${fm(h,1)} m, generados con las alturas, el BIL y la cadena del diseño.`:"Apantallamiento: con cables de guarda de hasta 25 m sobre el nivel 3 no se protege todo el patio; revise la tabla de elementos.")}
+  else{const ap=calcApa(g,S.apa);if(!ap.okPatio){const dh=subirGuarda();if(dh)msg.push(`Apantallamiento: cables de guarda ${fm(dh,1)} m más altos (${fm(S.apa.hG,1)} m) para proteger todo el patio.`)}}
+  {const ap=calcApa(g,S.apa);if(!ap.okMast){const h0=+S.apa.hM;for(let h=h0+0.5;h<=+S.apa.deM+12;h+=0.5){if(calcApa(g,{...S.apa,hM:h}).okMast){S.apa.hM=h;msg.push(`Casa de control: puntas captadoras a ${fm(h,1)} m (antes ${fm(h0,1)} m).`);break}}}}
   return msg;
 }
-function aplicarAuto(silencio){const msg=autoFix();if(msg.length){const t=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});AUTO=[...msg.map(x=>[t,x]),...AUTO].slice(0,8);save();buildForms();renderAll();if(!silencio)toast(msg.length===1?msg[0]:`Se ajustaron ${msg.length} selecciones para que cumplan. Detalle en el Resumen.`)}return msg}
+function aplicarAuto(silencio,opt){const msg=autoFix(!!opt);if(msg.length){const t=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});AUTO=[...msg.map(x=>[t,x]),...AUTO].slice(0,14);save();buildForms();renderAll();if(!silencio)toast(msg.length===1?msg[0]:`Se ajustaron ${msg.length} selecciones para que cumplan. Detalle en el Resumen.`)}return msg}
 HOOK.disenar=()=>disenar();
 HOOK.auto=(m,k)=>{if(SELK.has(m+"."+k))return;aplicarAuto()};
 /* Botón Diseñar: recalcula todo, corrige lo que no cumple y muestra el resumen */
-function disenar(){HOOK.normalize();elegirEnvolvente();const msg=aplicarAuto(true);renderAll();showTab("resumen",true);
+function disenar(){HOOK.normalize();elegirEnvolvente();const msg=aplicarAuto(true,!S.proy.base);renderAll();showTab("resumen",true);
   const nNo=[RA.ok,RI.ok,RC.ok,RE.ok,RM.ok,RP.ok].filter(x=>!x).length;
   toast(`Diseño calculado${msg.length?` con ${msg.length} ajuste${msg.length>1?"s":""} automático${msg.length>1?"s":""}`:""}. ${nNo?`${nNo} módulo${nNo>1?"s":""} por revisar.`:"Todos los módulos cumplen."}`)}
 /* Corrientes de diseño (las mismas del módulo de equipos) */
@@ -186,8 +236,8 @@ function renderAis(){
     :verdict("no","La coordinación no cumple todavía","Motivo: "+fails.join("; ")+".");
   const dpsN=o.estr==="dps"?`<div class="note wa" style="margin-top:10px">Estrategia «solo la envolvente del DPS»: los equipos quedan con BIL ${o.BIL} kV y la envolvente del pararrayos sube a ${fm(o.hBIL,0)} kV. La distancia protegida sigue siendo ${fm(o.lmax1,1)} m, porque depende del BIL del equipo protegido y no del aislamiento propio del pararrayos.</div>`:"";
   if(dpsN)$("vAis").innerHTML+=dpsN;
-  $("kAis").innerHTML=kpi("BIL requerido",fm(o.BILreq,1),"kV",`${fm(o.kmin,2)} × ${fm(o.NPRc,1)} kV`,"hl")+kpi(o.estr==="mezcla"?"Nivel principal":"BIL de los equipos",o.BIL??"—","kV BIL",L1?`clase ${fmU(L1.um)} kV · ${L1.ac} kV a 60 Hz`:"","hl")+kpi("Distancia máx. con ese nivel",fm(o.lmax1,1),"m",`MP ≥ ${mpT}`,"hl")+
-    (L2?kpi("Nivel para equipos lejanos",L2.BIL,"kV BIL",`clase ${fmU(L2.um)} kV · ${L2.ac} kV a 60 Hz`)+kpi("Distancia máx. con ese nivel",fm(o.lmax2,1),"m",`MP ≥ ${mpT}`):"")+
+  $("kAis").innerHTML=kpi("BIL requerido",fm(o.BILreq,1),"kV",`${fm(o.kmin,2)} × ${fm(o.NPRc,1)} kV`,"hl")+kpi(o.estr==="mezcla"?"Nivel principal":"BIL de los equipos",o.BIL??"—","kV BIL",L1?`clase ${fmU(L1.um)} kV · ${L1.ac?L1.ac+" kV a 60 Hz":"rango II: rige la maniobra"}`:"","hl")+kpi("Distancia máx. con ese nivel",fm(o.lmax1,1),"m",`MP ≥ ${mpT}`,"hl")+
+    (L2?kpi("Nivel para equipos lejanos",L2.BIL,"kV BIL",`clase ${fmU(L2.um)} kV · ${L2.ac?L2.ac+" kV a 60 Hz":"rango II: rige la maniobra"}`)+kpi("Distancia máx. con ese nivel",fm(o.lmax2,1),"m",`MP ≥ ${mpT}`):"")+
     kpi("Factor de altitud Ka",fm(o.Ka,3),"",`${fm(g.alt,0)} m · ref. 1000 m`)+kpi("Protección corregida",fm(o.NPRc,1),"kV",`NPR ${fm(o.npr,0)} kV × Ka`)+kpi("Ur mínima",fm(o.Rn,2),"kV",`catálogo ${fm(o.ur,0)} kV`,o.okUr?"":"bad")+kpi("Fuga mínima",fm(o.Lreq,0),"mm",`${fm(o.kf,1)} mm/kV × ${fmU(g.um)} × ${fm(p.kd,1)}`);
   const m=(b,t)=>pill(b?"ok":"no",t),used=f=>f===L1?pill("ok",o.estr==="mezcla"?"Principal":"Equipos"):f===L2?pill("ok","Equipos lejanos"):f.ok?pill("wa","Cumple"):pill("no","No cumple");
   $("tAis").innerHTML=`<tr><th class="l">BIL</th><th>Clase Um</th><th>60 Hz</th><th>BIL/NPR' (≥ ${fm(o.kmin,2)})</th><th>BSL aire</th><th>BSL aceite</th><th>BSL/NPM' (&gt; 1,15)</th><th>Distancia máx.</th><th class="l">Uso</th></tr>`+
@@ -232,7 +282,7 @@ function memoAis(o,g,p){
   add("Nivel de aislamiento","Efecto de la distancia",`La onda viaja por el conductor y se refleja en el equipo, que ve una tensión mayor que la del pararrayos. Por eso cada nivel solo protege hasta cierta distancia.`,
     [`${Sb(I("U"),"2")} = NPR' + ${F("2"+I("S")+I("l"),I("c"))} ; MP = ${F("BIL − "+Sb(I("U"),"2"),Sb(I("U"),"2"))} ≥ ${fm(p.mp,0)} % → ${Sb(I("l"),"máx")} = (${F("BIL",fm(o.kmin,2))} − NPR')·${F(I("c"),"2"+I("S"))}`,
      ...[L1,L2].filter(Boolean).map(L=>`BIL ${L.BIL} kV: ${Sb(I("l"),"máx")} = (${fm(L.BIL/o.kmin,1)} − ${fm(o.NPRc,1)})·${F("300","2·"+fm(p.S,0))} = ${R(fm(L.dmax,1)+" m")}`)],"IEC 60071-2 · método convencional");
-  [L1,L2].filter(Boolean).forEach(L=>add("Nivel de aislamiento",`Verificación del BIL ${L.BIL} kV`,`Equipo de clase Um = ${fmU(L.um)} kV (${L.ac} kV a 60 Hz). El BSL calculado se lleva al normalizado inmediatamente inferior.`,
+  [L1,L2].filter(Boolean).forEach(L=>add("Nivel de aislamiento",`Verificación del BIL ${L.BIL} kV`,`Equipo de clase Um = ${fmU(L.um)} kV (${L.ac?L.ac+" kV a 60 Hz":"rango II: se especifica la soportada a impulso de maniobra"}). El BSL calculado se lleva al normalizado inmediatamente inferior.`,
     [`BSL aire = 0,75·${L.BIL} = ${fm(L.BSLa,1)} → ${L.BSLaN} kV ; BSL aceite = 0,83·${L.BIL} = ${fm(L.BSLo,1)} → ${L.BSLoN} kV`,
      `${F("BSL","NPM'")} = ${F(L.BSLaN,fm(o.NPMc,1))} = ${R(fm(L.KMa))} y ${F(L.BSLoN,fm(o.NPMc,1))} = ${R(fm(L.KMo))} ${L.c2?AD("> 1,15"):BD("≤ 1,15")}`,
      `IEC 60071-2: ${Sb(I("U"),"cw")} = ${F(L.BIL,"1,05·"+fm(o.Ka0,3))} = ${fm(L.Ucwe,1)} kV → ${I("l")} = ${fm(L.le,1)} m (externo) ; ${F(L.BIL,"1,15")} = ${fm(L.Ucwi,1)} kV → ${fm(L.li,1)} m (interno)`+MU(`gobierna el margen del ${fm(p.mp,0)} %: ${fm(L.dmax,1)} m`)],"IEC 60071-1/2"));
@@ -315,10 +365,11 @@ Object.assign(FORMS,{
     num("con","f","Flecha","m",{step:0.01,show:()=>S.dis.barra!=="rig"&&S.con.mMode==="flecha",lock:()=>!!S.con.link}),num("con","T","Tensión de tendido por conductor","kgf",{step:10,show:()=>S.dis.barra!=="rig"&&S.con.mMode!=="flecha"}),
     num("con","tubD","Tubo: diámetro exterior","mm",{show:()=>S.dis.barra==="rig"}),num("con","tubT","Tubo: espesor","mm",{show:()=>S.dis.barra==="rig"}),num("con","tubL","Distancia entre soportes","m",{show:()=>S.dis.barra==="rig"}),
     num("con","tubRp","Límite elástico Rp0,2","MPa",{show:()=>S.dis.barra==="rig"}),num("con","tubB","Factor de apoyo β","",{show:()=>S.dis.barra==="rig"})],
-  fConCx:[sel("con","cL","Bahía de línea",()=>[["none","No verificar"],...CAT.COND.map(c=>[c.id,c.n])],{wide:true}),sel("con","cT","Bahía de transformador",()=>[["none","No verificar"],...CAT.COND.map(c=>[c.id,c.n])],{wide:true})],
+  fConCx:[sel("con","cL","Bahía de línea",()=>[["none","No verificar"],...CAT.COND.map(c=>[c.id,c.n])],{wide:true}),sel("con","nCL","Conductores por fase (línea)",[[1,"1"],[2,"2"],[3,"3"],[4,"4"]],{num:true,show:()=>S.con.cL!=="none"}),
+    sel("con","cT","Bahía de transformación",()=>[["none","No verificar"],...CAT.COND.map(c=>[c.id,c.n])],{wide:true}),sel("con","nCT","Conductores por fase (transformación)",[[1,"1"],[2,"2"],[3,"3"],[4,"4"]],{num:true,show:()=>S.con.cT!=="none"})],
   /* equipos */
   fEqI:[sel("proy","trTipo","Tipo de transformador",Object.entries(SUBE.TR_TIPO).map(([k,v])=>[k,v[0]]),{wide:true}),...selO("proy","sSel","S1","Potencia por unidad",S_OPTS,"MVA"),num("proy","nTr","Circuitos de transformación","",{step:1}),num("proy","nLin","Circuitos de línea","",{step:1}),num("eq","fc","Factor de sobrecarga y crecimiento","",{step:0.05})],
-  fEqCc:[num("eq","Isc","Falla trifásica en barras","kA",{hint:CB("30 kA del enunciado.")}),num("eq","I1","Falla a tierra en barras","kA",{hint:"Del estudio de cortocircuito."}),num("eq","XR","Relación X/R","")],
+  fEqCc:[num("eq","Isc","Falla trifásica en barras","kA",{hint:CB("30 kA del enunciado.")}),num("eq","I1","Falla a tierra en barras","kA",{hint:"Del estudio de cortocircuito."}),num("eq","XR","Relación X/R",""),chk("eq","ikMargen","Corta duración con 5 % de reserva frente a la falla",{wide:true,hint:"Si no se marca, se toma la normalizada que cubre la falla trifásica."})],
   fEqSec:[num("eq","Feq","Ancho abierto F","m",{step:0.01,hint:"Cota F del catálogo del seccionador."}),num("eq","Dais","Altura del aislador D","m",{step:0.001,hint:"Del catálogo del seccionador."}),num("eq","sEq","Separación entre polos (plano)","m",{step:0.05,hint:"0 = no verificar"}),num("eq","base","Altura de la base (plano)","m",{step:0.05})]
 });
 const TIPOS_EQ=()=>{const ce=SUBE.cuentaEquipos(S.proy),sec={barra:"Seccionador de barra (89-1)",transf:"Seccionador de transferencia (89-T)",acople:"Seccionador del acople (89-3)",interr:"Seccionador de interruptor",salida:"Seccionador de salida (89-L)",bypass:"Seccionador de by-pass (89-BY)",seccB:"Seccionador de barras (seccionamiento)"};
@@ -335,12 +386,12 @@ function renderDis(){
   if(p.cond==="ACSR")p.K=10;else if(p.cond==="Cu")p.K=1.75;
   const r=RD=calcDis(S.g,p),fl=r.flex;
   const hard=r.checks.filter(c=>!c.ok&&c.lvl==="no"),soft=r.checks.filter(c=>!c.ok&&c.lvl==="wa");
-  $("vDis").innerHTML=hard.length?verdict("no","Hay criterios que no cumplen",hard.map(c=>c.txt).join("; ")+"."):soft.length?verdict("wa","Distancias calculadas, con una observación",soft.map(c=>c.txt+": "+c.bad).join("; ")+"."):verdict("ok","Todas las distancias cumplen y la disposición del plano las respeta",`BIL ${p.BIL} kV · ${p.dMode==="none"?"sin volver a corregir por altitud (el BIL ya la incluye)":"δ = "+fm(r.delta,3)}. Donde la tabla IEC / RETIE pide más que la fórmula, se adopta la tabla.`);
+  $("vDis").innerHTML=hard.length?verdict("no","Hay criterios que no cumplen",hard.map(c=>c.txt).join("; ")+"."):soft.length?verdict("wa","Distancias calculadas, con una observación",soft.map(c=>c.txt+": "+c.bad).join("; ")+"."):verdict("ok",p.Wb>0||p.sPlan>0||p.amPlan>0?"Todas las distancias cumplen y la disposición del plano las respeta":"Todas las distancias cumplen",`BIL ${p.BIL} kV · ${p.dMode==="none"?"sin volver a corregir por altitud (el BIL ya la incluye)":"δ = "+fm(r.delta,3)}. Donde la tabla IEC / RETIE pide más que la fórmula, se adopta la tabla.`);
   $("kDis").innerHTML=kpi("Fase–tierra",fm(r.dftA),"m",`tabla ${fm(r.R&&r.R[1])} · fórmula ${fm(r.dft,3)}`,"hl")+kpi("Fase–fase",fm(r.dffA),"m",`${fm(p.fff)} × fase–tierra`,"hl")+kpi("Valor básico",fm(r.VBa),"m",`${fm(p.kVB,2)} × fase–tierra`)+
     kpi("Circulación de personal",fm(r.DvA),"m","VB + 2,25")+kpi("Trabajo horizontal",fm(r.DhA),"m","VB + 1,75")+kpi("Trabajo vertical",fm(r.DtvA),"m","VB + 1,25")+kpi("Vehículos",fm(r.HvehA),"m",`VB + ${fm(p.galibo,2)} + 0,70`)+
     (fl?kpi("Flecha",fm(r.f_m),"m",p.fMode==="pct"?`${fm(p.pct,1)} % de ${fm(p.vano,0)} m`:p.fMode==="val"?"dato":"L²·w/(8·Fh)"):"")+kpi("Separación entre fases",fm(r.SfA),"m",fl?`plano: ${fm(r.sPlan)} m`:"= fase–fase","hl")+kpi("Altura de equipos",fm(r.heqA),"m","2,30 + 0,0105·Um","hl")+
-    kpi(fl?"Amarre de barras":"Altura de barras",fm(r.amarreA),"m",`punto bajo ${fm(r.hbLow)} m · mín. ${fm(r.hbF)}`,"hl")+kpi("Remate de líneas",fm(r.hremA),"m",`plano ${fm(p.hremPlan,2)} m`)+kpi("Ancho mínimo de bahía",fm(r.WbMin),"m",`hay ${fm(p.Wb,2)} m`,p.Wb>0&&p.Wb<r.WbMin?"bad":"");
-  $("tDisChk").innerHTML=`<tr><th class="l">Criterio</th><th>Comparación</th><th class="l">Resultado</th></tr>`+r.checks.map(c=>`<tr><td class="l">${c.txt}</td><td>${c.cmp}</td><td class="l">${c.ok?pill("ok","Cumple"):pill(c.lvl==="info"?"wa":c.lvl,c.bad)}</td></tr>`).join("");
+    kpi(fl?"Amarre de barras":"Altura de barras",fm(r.amarreA),"m",`punto bajo ${fm(r.hbLow)} m · mín. ${fm(r.hbReq)}${r.hbVeh?" (vehículos)":""}`,"hl")+kpi("Remate de líneas",fm(r.hremA),"m",p.hremPlan>0?`plano ${fm(p.hremPlan,2)} m`:r.hremVeh?"rige la circulación de vehículos":"5,0 + 0,006·Um ≥ 6 m")+kpi("Ancho mínimo de bahía",fm(r.WbMin),"m",p.Wb>0?`hay ${fm(p.Wb,2)} m`:"2·Sf + 2·fase–estructura",p.Wb>0&&p.Wb<r.WbMin?"bad":"");
+  $("tDisChk").innerHTML=`<tr><th class="l">Criterio</th><th>Comparación</th><th class="l">Resultado</th></tr>`+r.checks.map(c=>`<tr><td class="l">${c.txt}</td><td>${c.cmp}</td><td class="l">${c.ok?pill("ok","Cumple"):c.lvl==="info"?pill("ok",c.bad):pill(c.lvl,c.bad)}</td></tr>`).join("");
   $("tCons").innerHTML=`<tr><th class="l">Distancia</th><th class="l">Expresión</th><th>Calculado (m)</th><th>Tabla (m)</th><th>Adoptado (m)</th></tr>`+consRows(r).map(x=>x[0]==="g"?`<tr class="grp"><td colspan="5">${x[1]}</td></tr>`:`<tr><td class="l">${x[0]}</td><td class="l mut">${x[1]}</td><td>${x[2]==null?"—":fm(x[2],3)}</td><td>${x[3]==null?"—":fm(x[3])}</td><td><b>${fm(x[4])}</b></td></tr>`).join("");
   $("consNote").textContent=(r.R?(r.retie.exact?`Fila de la tabla RETIE / IEC para BIL ${p.BIL} kV.`:`BIL ${p.BIL} kV fuera de las filas de la tabla: valores interpolados.`):"BIL fuera de la tabla RETIE.")+" Se adopta el múltiplo de 0,05 m inmediatamente superior; nunca se redondea hacia abajo.";
   $("svgDis").innerHTML=svgDis(r);
@@ -375,8 +426,8 @@ function memoDis(r){
     [`${Sb(I("W"),"b,mín")} = 2·${n2(Math.max(r.SfA,r.sEqA))} + 2·${n2(r.DfeA)} = ${R(n2(r.WbMin)+" m")}`+(p.Wb>0?MU(`${p.Wb>=r.WbMin?"≤":">"} ${n2(p.Wb)} m de diseño`):"")],"Mejía Villegas");
   add("Alturas de diseño","Altura de equipos","Altura mínima de las partes energizadas de los equipos; además debe cubrir la circulación de personal.",[`${Sb(I("h"),"s")} = 2,30 + 0,0105·${fmU(g.um)} = ${R(n2(r.heqF)+" m")} ; ≥ ${Sb(I("H"),"v")} = ${n2(r.Dv)} m`+A(r.heqA)],"Mejía Villegas");
   add("Alturas de diseño","Barras colectoras",fl?"La fórmula da el punto más bajo del conductor, en la mitad del vano; el amarre va una flecha más arriba.":"Altura de las barras sobre el suelo.",
-    [`${Sb(I("h"),"b")} = 5,0 + 0,0125·${fmU(g.um)} = ${R(n2(r.hbF)+" m")}`,...(fl?[`${Sb(I("h"),"amarre")} = ${n2(r.hbF)} + ${n2(r.f_m)} = ${R(n2(r.amarre)+" m")}`+A(r.amarreA)+MU(`punto más bajo ${n2(r.hbLow)} m`)]:[])],"Mejía Villegas");
-  add("Alturas de diseño","Remate de líneas","Altura a la que llegan las líneas al pórtico; la referencia exige como mínimo 6 m.",[`${Sb(I("h"),"l")} = 5,0 + 0,006·${fmU(g.um)} = ${R(n2(r.hremF)+" m")} ≥ 6 m`+A(r.hremA)],"Mejía Villegas");
+    [`${Sb(I("h"),"b")} = 5,0 + 0,0125·${fmU(g.um)} = ${R(n2(r.hbF)+" m")}`+(r.hbVeh?` ; vehículos ${n2(r.Hveh)} m ${MU("rige la circulación de vehículos")}`:""),...(fl?[`${Sb(I("h"),"amarre")} = ${n2(r.hbReq)} + ${n2(r.f_m)} = ${R(n2(r.amarre)+" m")}`+A(r.amarreA)+MU(`punto más bajo ${n2(r.hbLow)} m`)]:[A(r.amarreA)])],"Mejía Villegas");
+  add("Alturas de diseño","Remate de líneas","Altura a la que llegan las líneas al pórtico; la referencia exige como mínimo 6 m.",[`${Sb(I("h"),"l")} = 5,0 + 0,006·${fmU(g.um)} = ${R(n2(r.hremF)+" m")} ≥ 6 m`+(r.hremVeh?` ; vehículos ${n2(r.Hveh)} m ${MU("rige la circulación de vehículos")}`:"")+A(r.hremA)],"Mejía Villegas");
   return st;
 }
 function svgDis(r){
@@ -443,7 +494,7 @@ function renderCon(){
    (rig?`<tr><td class="l">Tubo: esfuerzo de flexión en cortocircuito</td><td>${fm(o.sig,0)} MPa</td><td>≤ ${fm(o.sigAdm,0)} MPa</td><td class="l">${okp(o.okTub)}</td></tr>`
        :`<tr><td class="l">Tensión de tendido</td><td>${fm(o.pctRts,1)} % de la rotura</td><td>≤ 25 %</td><td class="l">${okp(o.okT)}</td></tr>
    <tr><td class="l">Balanceo de los cables en cortocircuito</td><td>${fm(o.ang,0)}°</td><td class="l mut" colspan="2" style="white-space:normal">Informativo. La distancia mínima durante el balanceo se verifica con el método completo de IEC 60865-1 (debe quedar al menos el 50 % de la fase–fase).</td></tr>`)+
-   o.cx.map(x=>`<tr><td class="l">${x.t}: ${esc(x.C.n)}</td><td>${fm(x.Ia,0)} A</td><td>≥ ${fm(x.I,1)} A</td><td class="l">${okp(x.ok,`Cumple (${fm(100*x.uso,0)} %)`)}</td></tr>`).join("")+
+   o.cx.map(x=>`<tr><td class="l">${x.t}: ${x.n>1?x.n+" × ":""}${esc(x.C.n)}</td><td>${fm(x.Ia,0)} A</td><td>≥ ${fm(x.I,1)} A</td><td class="l">${okp(x.ok,`Cumple (${fm(100*x.uso,0)} %)`)}</td></tr>`).join("")+
    (o.cat?`<tr><td class="l">Comprobación con el catálogo</td><td>${fm(SUBE.amp738({D:o.d/1000,R:o.r20*p.kac*(1+0.00403*55)/1000,Ta:25,Tc:75,V:0.61,phi:90,He:0,eps:0.5,alpha:0.5,Qs:1000}).I,0)} A</td><td>${fm(o.cat.amp,0)} A de catálogo</td><td class="l mut" style="white-space:normal">A 75 °C, ambiente 25 °C, viento 0,61 m/s, a nivel del mar.</td></tr>`:"");
   $("chCon").innerHTML=chartCon(g,p,rig);
   memo("memoCon",memoCon(o,g,p,rig));
@@ -480,7 +531,7 @@ function memoCon(o,g,p,rig){
     [`σ = β·${F(I("F")+"·"+I("l")+"²","8·"+I("Z"))} = ${R(fm(o.sig,0)+" MPa")} ; ${Sb("σ","adm")} = ${fm(o.q,2)}·${fm(p.tubRp,0)} = ${R(fm(o.sigAdm,0)+" MPa")} ${o.okTub?AD("cumple"):BD("no cumple")}`],"IEC 60865-1");
   else add("Tendido","Flecha y tensión",p.mMode==="flecha"?`Con la flecha fijada (${fm(o.f,2)} m) la tensión de tendido sale de la parábola del vano.`:`Con la tensión fijada se obtiene la flecha.`,
     [`${I("T")} = ${F(I("w")+"·"+I("L")+"²","8·"+I("f"))} = ${F(fm(o.w,3)+"·"+fm(p.L,1)+"²","8·"+fm(o.f,3))} = ${R(fm(o.T,0)+" kgf")} ; ${F(I("T"),"RTS")} = ${R(fm(o.pctRts,1)+" %")} ${o.okT?AD("≤ 25 %"):BD("> 25 %")}`],"Parábola del vano");
-  o.cx.forEach(x=>add("Conexiones de bahía",x.t,`${esc(x.C.n)} a ${fm(p.Tc,0)} °C, ${fm(p.Ta,0)} °C de ambiente y ${fm(g.alt,0)} m.`,[`${I("I")} = ${R(fm(x.Ia,0)+" A")} ${x.ok?AD("≥ "+fm(x.I,1)+" A ("+fm(100*x.uso,0)+" %)"):BD("< "+fm(x.I,1)+" A")}`],"IEEE 738"));
+  o.cx.forEach(x=>add("Conexiones de bahía",x.t,`${x.n>1?x.n+" conductores por fase · ":""}${esc(x.C.n)} a ${fm(p.Tc,0)} °C, ${fm(p.Ta,0)} °C de ambiente y ${fm(g.alt,0)} m.`,[`${I("I")} = ${R(fm(x.Ia,0)+" A")} ${x.ok?AD("≥ "+fm(x.I,1)+" A ("+fm(100*x.uso,0)+" %)"):BD("< "+fm(x.I,1)+" A")}`],"IEEE 738"));
   return st;
 }
 
@@ -677,12 +728,15 @@ function svgMalCorte(o,p){
   s+=`<path d="M${sx+5} ${y0} V${yg} H${sx+33}" fill="none" stroke="var(--accent)" stroke-width="1.6"/>`;
   /* la persona (con la camiseta azul del profe) */
   const px=sx-46,F=y0,hip=F-0.92*k,sh=F-1.42*k,hd=F-1.6*k;
-  s+=`<g aria-label="Persona tocando la estructura"><title>El profe, con su camiseta azul, revisando la tensión de toque</title><g stroke="var(--ink)" stroke-width="2" stroke-linecap="round" fill="none">`+
+  s+=`<g aria-label="Persona tocando la estructura"><title>El profe, con su camiseta azul y su violín, revisando la tensión de toque</title><g stroke="var(--ink)" stroke-width="2" stroke-linecap="round" fill="none">`+
     `<line x1="${px}" y1="${hip}" x2="${px-9}" y2="${F}"/><line x1="${px}" y1="${hip}" x2="${px+9}" y2="${F}"/>`+
     `<line x1="${px}" y1="${sh+3}" x2="${sx-1}" y2="${F-1.1*k}"/><line x1="${px}" y1="${sh+3}" x2="${px-15}" y2="${hip+4}"/>`+
     `<circle cx="${px}" cy="${hd}" r="7"/></g>`+
     `<path d="M${px-9} ${sh}L${px-4} ${sh-2}Q${px} ${sh+3} ${px+4} ${sh-2}L${px+9} ${sh}L${px+7} ${hip+2}L${px-7} ${hip+2}Z" fill="#1d4fa3" stroke="var(--ink)" stroke-width="1"/>`+
-    `<path d="M${px-4} ${sh-1.5}L${px} ${sh+4}L${px+4} ${sh-1.5}" fill="none" stroke="#fff" stroke-width="1.6"/><rect x="${px-7}" y="${hip-6}" width="14" height="2.4" fill="#fff"/></g>`;
+    `<path d="M${px-4} ${sh-1.5}L${px} ${sh+4}L${px+4} ${sh-1.5}" fill="none" stroke="#fff" stroke-width="1.6"/><rect x="${px-7}" y="${hip-6}" width="14" height="2.4" fill="#fff"/>`+
+    /* el violín, colgando de la mano libre */
+    `<g transform="translate(${px-15} ${hip+4}) rotate(14) scale(${k/100}) translate(0 -4)"><path d="M0 18 C-11 18 -11 34 -10 40 C-9 47 -6 49 -9 55 C-12 62 -11 72 0 72 C11 72 12 62 9 55 C6 49 9 47 10 40 C11 34 11 18 0 18Z" fill="#a0612e" stroke="#4a2a12" stroke-width="${1.4*100/k}"/>`+
+    `<rect x="-1.4" y="-6" width="2.8" height="26" fill="#2b1a0c"/><circle cx="0" cy="-8" r="2.6" fill="#4a2a12"/><path d="M-4 46 q-1.5 5 0 10 M4 46 q1.5 5 0 10" fill="none" stroke="#2b1a0c" stroke-width="${100/k}"/><rect x="-4" y="62" width="8" height="2.2" fill="#2b1a0c"/></g></g>`;
   /* cotas y textos */
   s+=T(20,y0-8,`grava hs = ${fm(p.hs,2)} m · ρs = ${fm(p.rhos,0)} Ω·m`);
   if(o.trat)s+=`<rect x="10" y="${y0+hsP}" width="${W-20}" height="${H-y0-hsP-4}" fill="var(--safe)" opacity=".55"/>`+T(W-20,H-10,`terreno mejorado: ρ1 = ${fm(o.rho1,0)} Ω·m (${fm(p.Ht,1)} m) sobre ρ2 = ${fm(o.rho2,0)} Ω·m`,"end","var(--link)","600");
@@ -785,9 +839,9 @@ function renderApa(){
   o.ver.forEach((v,i)=>etRes("etVer",i,[fm(v.Sm,2),fm(v.y,2),`<b style="color:${v.ok?"var(--ok)":"var(--no)"}">${fm(v.marg,2)}</b>`,`${fm(v.th,1)}° ${v.ok45?"":v.ok60?"(β 60°)":"&gt; 45°"}`,v.ok&&(v.ok45||v.ok60)?pill("ok","Cumple (ambos)"):v.ok?pill("ok","Cumple (esfera)"):v.ok45||v.ok60?pill("ok",v.ok45?"Cumple (45°)":"Cumple (β 60°)"):pill("no","Expuesto")]));
   $("svgApa").innerHTML=svgApa(o,p);
   $("tMas").innerHTML=`<tr><th class="l">Punto crítico de la cubierta</th>${o.mast.map(m=>`<th>Esfera de ${fm(m.R,2)} m</th>`).join("")}</tr>`+
-    o.mast[0].pts.map((q,j)=>`<tr><td class="l">${q.t}</td>${o.mast.map(m=>{const z=m.pts[j];return `<td>${fm(z.y,2)} m <span class="pill ${z.m>=0?"ok":"no"}">${z.m>=0?"+":""}${fm(z.m,2)} m</span></td>`}).join("")}</tr>`).join("")+
-    `<tr><td class="l">Diagonal máxima entre puntas 2J</td>${o.mast.map(m=>`<td>${fm(m.Kmax,2)} m ${m.Kmax>=o.Kdiag?"≥":"<"} ${fm(o.Kdiag,2)} m ${okp(m.Kmax>=o.Kdiag)}</td>`).join("")}</tr>
-     <tr><td class="l mut" colspan="${o.mast.length+1}" style="white-space:normal">Edificio de ${fm(p.L1,2)} × ${fm(p.L2,2)} m con cubierta a ${fm(p.deM,2)} m y cuatro puntas en las esquinas a ${fm(p.hM,2)} m. Se muestra la altura del arco de la esfera y el margen sobre la cubierta (Mejía Villegas 5.5.4.2, ec. 5.21 a 5.24).</td></tr>`;
+    o.mast[0].pts.map((q,j)=>`<tr><td class="l">${q.t}</td>${o.mast.map(m=>{const z=m.pts[j];return `<td>${fm(z.y,2)} m <span class="pill ${z.m>=0?"ok":m===o.mast[0]?"no":"wa"}">${z.m>=0?"+":""}${fm(z.m,2)} m</span></td>`}).join("")}</tr>`).join("")+
+    `<tr><td class="l">Diagonal máxima entre puntas 2J</td>${o.mast.map(m=>`<td>${fm(m.Kmax,2)} m ${m.Kmax>=o.Kdiag?"≥":"<"} ${fm(o.Kdiag,2)} m ${m.Kmax>=o.Kdiag?okp(true):m===o.mast[0]?okp(false):pill("wa","Solo informativa")}</td>`).join("")}</tr>
+     <tr><td class="l mut" colspan="${o.mast.length+1}" style="white-space:normal">Edificio de ${fm(p.L1,2)} × ${fm(p.L2,2)} m con cubierta a ${fm(p.deM,2)} m y cuatro puntas en las esquinas a ${fm(p.hM,2)} m. Se muestra la altura del arco de la esfera y el margen sobre la cubierta (Mejía Villegas 5.5.4.2, ec. 5.21 a 5.24). Rige la esfera de ${fm(p.rN,0)} m del nivel de protección (NTC 4552-3); la esfera del patio es una verificación adicional.</td></tr>`;
   memo("memoApa",memoApa(o,p));
   setSt("st-apa",o.ok?"ok":"no");
 }
@@ -957,7 +1011,7 @@ function renderResumen(){
   if(a.estr==="dps")al.push(["wa",`Aislamiento: con «solo la envolvente del DPS» los equipos siguen con BIL ${a.BIL} kV y quedan protegidos solo hasta ${fm(a.lmax1,1)} m; la envolvente de ${fm(a.hBIL,0)} kV no alarga esa distancia.`]);
   al.push(i.ok?["ok",`Aisladores: ${esc(insName(i.A))} cumple fuga (${fm(i.fuga,0)} ≥ ${fm(i.Lreq,0)} mm), arco y flameo a ${fm(S.g.alt,0)} m para BIL ${i.BIL} kV.`]:["no",`Aisladores: la cadena no cumple (${i.chk.filter(x=>!x.ok).map(x=>x.k).join(", ")}).`]);
   d.checks.filter(x=>!x.ok&&x.lvl!=="info").forEach(x=>al.push([x.lvl==="no"?"no":"wa",`Distancias: ${x.txt.toLowerCase()} (${x.cmp}).`]));
-  if(!dNo&&!dWa)al.push(["ok",`Distancias: la disposición cumple (fases de barras a ${fm(d.sPlan)} m ≥ ${fm(d.Sf)} m, bahía de ${fm(S.dis.Wb)} m ≥ ${fm(d.WbMin)} m, punto bajo de barras a ${fm(d.hbLow)} m).`]);
+  if(!dNo&&!dWa)al.push(["ok",`Distancias: ${S.dis.Wb>0?`la disposición cumple (fases de barras a ${fm(d.sPlan)} m ≥ ${fm(d.Sf)} m, bahía de ${fm(S.dis.Wb)} m ≥ ${fm(d.WbMin)} m, punto bajo de barras a ${fm(d.hbLow)} m)`:`todas cumplen (fases a ${fm(d.SfA)} m, bahía mínima de ${fm(d.WbMin)} m, equipos a ${fm(d.heqA)} m y barras amarradas a ${fm(d.amarreA)} m)`}.`]);
   al.push(c.ok?["ok",`Conductores: ${fm(c.Icap,0)} A en barras (${fm(100*c.uso,0)} %), sin corona${c.cx.length?`; conexiones de bahía al ${c.cx.map(x=>fm(100*x.uso,0)+" %").join(" y ")}`:""}.`]:["no","Conductores: algún conductor no cumple (corriente, corona, cortocircuito o tendido)."]);
   al.push(e.nNo?["no",`Equipos: ${e.nNo} equipo(s) a más de ${fm(a.lmax2,1)} m del pararrayos más cercano. Mueva o agregue pararrayos${a.estr!=="general"?" o suba el BIL":""}.`]:["ok",`Equipos: ${e.rows.length?`todos quedan protegidos con MP ≥ ${fm(S.ais.mp,0)} % (${e.n1} con BIL ${a.BIL} kV${a.BIL2?`, ${e.n2} con ${a.BIL2} kV`:""})`:"agregue los equipos y su distancia al pararrayos para asignarles el BIL"}.`]);
   if(e.Ik40>e.Ik)al.push(["wa",`Cortocircuito: la falla a tierra (${fm(S.eq.I1,2)} kA) deja los equipos de ${fm(e.Ik,1)} kA al ${fm(100*e.u1,0)} %; conviene pedir ${fm(e.Ik40,0)} kA.`]);

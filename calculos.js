@@ -54,11 +54,11 @@ const DEF={
   g:{um:123,alt:1800,t:18,tmax:26},
   ais:{estr:"mezcla",bilG:0,distAuto:true,ke:1.4,ko:0.8,kt:1.15,mp:40,S:1000,dpsCat:"sie-3EL2-3",dpsUr:96,npmI:0,ur:96,uc:77,npr:226,npm:180,
        bil1:550,bil2:750,dist:21.5,pol:"d",kd:1.1,hous:"Q",hBIL:0,hAC:0,sllReq:400,cH:"Envolvente personalizada",cHli:936,cHpf:436,cHfuga:6160,cHsll:1580,Ufo:650,Zl:400},
-  ins:{bilSrc:"2",BIL:750,ins:"qs-S025060H2010",nD:0,extra:0,sig:3,T:8.3,FS:1.5,n:69,cN:"Aislador personalizado",cTipo:"pol",cFuga:4597,cArco:1547,cCfo:1010,cLiwv:880,cPf:585,cSml:111,cPaso:146},
+  ins:{bilSrc:"2",BIL:750,ins:"disco-52-3",nD:17,extra:0,sig:3,T:8.3,FS:1.5,n:87,cN:"Aislador personalizado",cTipo:"pol",cFuga:4597,cArco:1547,cCfo:1010,cLiwv:880,cPf:585,cSml:111,cPaso:146},
   dis:{link:true,BSL:0,BIL:550,dMode:"none",dMan:0.893,fff:1.15,galibo:4,rnd:true,Es:550,kS:1.04,nExp:0.9,kVB:1.1,barra:"flex",cond:"ACSR",K:10,vano:22,fMode:"pct",pct:1.5,fVal:0.33,w:3.527,Fh:650,
        Wb:11,sPlan:2.10,dFc:2.00,amPlan:7.50,hremPlan:11.0,dHplan:3.25,Fsec:1.45},
   con:{cond:"Lupine",nsub:1,sep:40,d:46.3,w:3.527,rts:19005,r20:0.0229,aAl:1267.1,kac:1.03,Idis:1626.6,Ta:26,Tc:75,vv:0.61,eps:0.5,abs:0.5,Qs:1000,m:0.85,link:true,linkI:true,a:2.10,
-       Ik:31.5,kip:2.6,tk:1,te:200,mMode:"flecha",f:0.33,T:650,L:22,tubD:100,tubT:5,tubRp:160,tubB:0.73,tubL:9,cL:"Drake",cT:"Bittern"},
+       Ik:31.5,kip:2.6,tk:1,te:200,mMode:"flecha",f:0.33,T:650,L:22,tubD:100,tubT:5,tubRp:160,tubB:0.73,tubL:9,cL:"Drake",cT:"Bittern",nCL:1,nCT:1},
   eq:{fc:1.2,Isc:30,XR:15,I1:31.18,Feq:1.45,Dais:1.372,base:2.50,sEq:2.75,rows:EQ_BASE},
   mal:{If:30,IfTipo:"asim",XR:30,Cp:1.05,Sf:1,tf:1,tc:1,rho:800,mej:"favigel",red1:90,Ht:3,red2:87.5,rhos:8534.4,hs:0.35,peso:50,Ta:26,
        Lx:108.3,Ly:116,nCx:19,nCy:20,Dsel:"min",h:0.75,size:"250",mat:"blando",conn:"exo",
@@ -178,7 +178,7 @@ function calcAis(g,p){
   const lista=i0<0?base:BIL_SERIE.slice(i0,i0+6);
   const fila=BIL=>{const K1=BIL/o.NPRc,par=tII.find(t=>t[1].includes(BIL)),BSLa=par?par[0]:0.75*BIL,BSLo=par?par[0]:0.83*BIL,
       BSLaN=par?par[0]:bslNorm(BSLa),BSLoN=par?par[0]:bslNorm(BSLo),KMa=BSLaN/o.NPMc,KMo=BSLoN/o.NPMc,
-      dmax=(BIL/o.kmin-o.NPRc)*c/(2*p.S),um=umClase(g.um,BIL),ac=ACW[BIL]||null;
+      dmax=Math.floor((BIL/o.kmin-o.NPRc)*c/(2*p.S)*10+1e-9)/10,   /* distancia máxima: se redondea hacia abajo (lado seguro) */um=umClase(g.um,BIL),ac=ACW[BIL]||null;
     const Ucwe=BIL/(1.05*o.Ka0),Ucwi=BIL/1.15,le=(Ucwe-o.npr)*c/(2*p.S),li=(Ucwi-o.npr)*c/(2*p.S);
     return {BIL,um,ac,K1,BSLa,BSLo,BSLaN,BSLoN,KMa,KMo,dmax,rII:!!par,Ucwe,Ucwi,le,li,del:base.includes(BIL),
       c1:K1>=o.kmin-1e-9,c2:KMa>1.15&&KMo>1.15,ok:K1>=o.kmin-1e-9&&KMa>1.15&&KMo>1.15}};
@@ -269,8 +269,10 @@ function calcDis(g,p){
   r.WbMin=2*Math.max(r.SfA,r.sEqA)+2*r.DfeA;
   r.heqF=2.30+0.0105*g.um;r.heqA=RU(Math.max(r.heqF,r.Dv));
   r.hbF=5+0.0125*g.um;
-  r.amarre=r.hbF+r.f_m;r.amarreA=p.amPlan>0?+p.amPlan:(r.flex?RP(r.amarre):RU(r.hbF));r.hbLow=r.amarreA-r.f_m;
-  r.hremF=5+0.006*g.um;r.hremA=RU(Math.max(6,r.hremF));
+  /* el punto bajo de las barras debe cumplir la altura mínima de barras y la de vehículos; el remate, 6 m y vehículos */
+  r.hbReq=Math.max(r.hbF,r.Hveh);r.hbVeh=r.Hveh>r.hbF;
+  r.amarre=r.hbReq+r.f_m;r.amarreA=p.amPlan>0?+p.amPlan:(r.flex?RP(r.amarre):RU(r.hbReq));r.hbLow=r.amarreA-r.f_m;
+  r.hremF=5+0.006*g.um;r.hremVeh=r.Hveh>Math.max(6,r.hremF);r.hremA=RU(Math.max(6,r.hremF,r.Hveh));
   r.Wb=p.Wb>0?p.Wb:r.WbMin;r.sPlan=p.sPlan>0?+p.sPlan:r.SfA;
   const f2=x=>Number(x).toFixed(2).replace(".",","),ge=(a,b)=>`${f2(a)} m ${a>=b-1e-9?"≥":"<"} ${f2(b)} m`;
   r.checks=[
@@ -279,7 +281,7 @@ function calcDis(g,p){
     {txt:"Altura de equipos frente a circulación de personal",ok:r.heqA>=r.Dv-1e-9,cmp:ge(r.heqA,r.Dv),bad:"Subir los equipos",lvl:"no"},
     {txt:"Punto más bajo de barras frente a la altura mínima de barras",ok:r.hbLow>=r.hbF-1e-9,cmp:ge(r.hbLow,r.hbF),bad:"Subir el amarre de las barras",lvl:"no"},
     {txt:"Punto más bajo de barras frente a circulación de vehículos",ok:r.hbLow>=r.Hveh-1e-9,cmp:ge(r.hbLow,r.Hveh),bad:"No apto para vías bajo barras",lvl:"no"},
-    {txt:"Remate de líneas frente al mínimo de 6 m y a vehículos",ok:r.hremA>=r.Hveh-1e-9,cmp:ge(r.hremA,r.Hveh),bad:`Si hay vías bajo las llegadas, use ${f2(r.HvehA)} m`,lvl:"wa"},
+    {txt:"Remate de líneas frente al mínimo de 6 m y a vehículos",ok:r.hremA>=Math.max(6,r.Hveh)-1e-9,cmp:ge(r.hremA,Math.max(6,r.Hveh)),bad:"Subir el remate",lvl:"no"},
     ...(p.hremPlan>0?[{txt:"Remate de líneas del plano frente al mínimo calculado",ok:p.hremPlan>=r.hremA-1e-9,cmp:ge(p.hremPlan,r.hremA),bad:"Subir el remate",lvl:"no"}]:[]),
     ...(r.flex?[{txt:"Separación entre fases de barras (plano) frente a la de flexibilidad",ok:r.sPlan>=r.Sf-1e-9,cmp:ge(r.sPlan,r.Sf),bad:"Separar más las fases",lvl:"no"}]:[]),
     ...(p.dFc>0?[{txt:"Distancia fase–columna (plano) frente a la fase–estructura flexible",ok:p.dFc>=r.Dfe-1e-9,cmp:ge(p.dFc,r.Dfe),bad:"Alejar la fase exterior de la columna",lvl:"no"}]:[]),
@@ -324,8 +326,8 @@ function calcCon(g,p,ctx){
   const D=p.tubD,t=p.tubT,di=D-2*t;o.Z=Math.PI*(Math.pow(D,4)-Math.pow(di,4))/(32*D);
   o.Fm=o.Fp*p.tubL;o.sig=p.tubB*o.Fm*(p.tubL*1000)/(8*o.Z);const k=1-2*t/D;o.q=1.7*(1-Math.pow(k,3))/(1-Math.pow(k,4));o.sigAdm=o.q*p.tubRp;o.okTub=o.sig<=o.sigAdm;
   /* conexiones de bahía */
-  o.cx=[["Conexión de bahía de línea",p.cL,ctx.Ilin],["Conexión de bahía de autotransformador",p.cT,ctx.Itr]].map(([t,id,I])=>{const Cc=condCat(id);if(!Cc||!(I>0))return null;
-    const Ia=ampCond(Cc,g,p,p.Tc).I;return{t,C:Cc,I,Ia,ok:Ia>=I,uso:I/Ia}}).filter(Boolean);
+  o.cx=[["Conexión de bahía de línea",p.cL,ctx.Ilin,p.nCL],["Conexión de bahía de transformación",p.cT,ctx.Itr,p.nCT]].map(([t,id,I,nb])=>{const Cc=condCat(id);if(!Cc||!(I>0))return null;
+    const n=Math.max(1,Math.round(+nb||1)),Ia=n*ampCond(Cc,g,p,p.Tc).I;return{t,C:Cc,n,I,Ia,ok:Ia>=I,uso:I/Ia}}).filter(Boolean);
   o.ok=o.okAmp&&o.okCor&&o.okTh&&(o.rig?o.okTub:o.okT)&&o.cx.every(x=>x.ok);
   return o;
 }
@@ -340,7 +342,8 @@ function calcEq(g,proy,p,A1,D1){
   const rat=I=>I_NORM.find(v=>v>=I-1e-9)||Math.ceil(I/1000)*1000;
   o.rLin=rat(o.Ilin);o.rTr=rat(o.Itr);o.rBP=rat(o.IBP);o.rBT=rat(o.IBT);
   o.Scc=Math.sqrt(3)*proy.un*p.Isc;
-  o.Ik=IK_NORM.find(v=>v>=p.Isc-1e-9)||63;o.ipA=2.6*o.Ik;
+  /* corriente de corta duración: la normalizada que cubre la falla; con ikMargen, además deja al menos 5 % de reserva frente a la falla a tierra */
+  o.Ik=p.ikMargen?(IK_NORM.find(v=>Math.max(p.Isc,p.I1||0)<=0.95*v+1e-9)||63):(IK_NORM.find(v=>v>=p.Isc-1e-9)||63);o.ipA=2.6*o.Ik;
   o.kappa=1.02+0.98*Math.exp(-3/p.XR);o.ip3=o.kappa*Math.SQRT2*p.Isc;o.ip1=o.kappa*Math.SQRT2*p.I1;
   o.u3=p.Isc/o.Ik;o.u1=p.I1/o.Ik;o.uip=o.ip3/o.ipA;o.uip1=o.ip1/o.ipA;
   o.Ik40=Math.max(o.u1,o.u3)>0.95?(IK_NORM.find(v=>v>o.Ik)||o.Ik):o.Ik;
@@ -485,7 +488,8 @@ function calcApa(g,p){
   /* el patio queda protegido si cumple cualquiera de los dos métodos: esfera rodante (con 2d ≤ 1,5·Sm) o ángulos fijos (45°, o 60° entre cables) */
   o.okMetEsf=o.okEsf&&o.okSep;o.okMetAng=o.ver.length>0&&o.ok60;o.okPatio=o.okMetEsf||o.okMetAng;
   o.metodo=o.okMetEsf&&o.okMetAng?"ambos":o.okMetEsf?"esfera":o.okMetAng?"angulos":"";
-  o.okMast=o.mast.every(m=>m.ok);
+  /* la casa de control se diseña con la esfera de su nivel de protección (NTC 4552-3); la del patio es una verificación adicional */
+  o.okMast=!o.mast.length||o.mast[0].ok;o.okMastSm=o.mast.every(m=>m.ok);
   o.ok=o.okPatio&&o.okMast;
   return o;
 }

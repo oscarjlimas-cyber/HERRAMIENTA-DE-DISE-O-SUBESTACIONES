@@ -117,9 +117,9 @@ function initNucleo(){
   $("flow").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)showTab(b.dataset.go,true)});
   window.addEventListener("hashchange",()=>showTab(location.hash.slice(1)));
   $("btnResetAll").addEventListener("click",()=>setState(clone(DEF),"Caso base S/E Termales 115 kV cargado."));
-  $("btnNew").addEventListener("click",()=>{const n=clone(DEF);Object.assign(n.proy,{nombre:"Nueva subestación",lugar:"Sitio del proyecto",base:false});n.eq.rows=[];Object.assign(n.dis,{Wb:0,sPlan:0,dFc:0,amPlan:0,hremPlan:0,dHplan:0});Object.assign(n.eq,{sEq:0,base:0});Object.assign(n.mal,{linkI:true,IfTipo:"sim"});
+  $("btnNew").addEventListener("click",()=>{const n=clone(DEF);Object.assign(n.proy,{nombre:"Nueva subestación",lugar:"Sitio del proyecto",base:false});n.eq.rows=[];Object.assign(n.dis,{Wb:0,sPlan:0,dFc:0,amPlan:0,hremPlan:0,dHplan:0});Object.assign(n.eq,{sEq:0,base:0});Object.assign(n.mal,{linkI:true,IfTipo:"sim",mej:"no",zon:false,esqOn:false});Object.assign(n.ins,{nD:0,n:69});
     setState(n,"Proyecto nuevo: escriba sus datos y pulse «Diseñar con estos datos».");$("proyCard").open=true;const i=document.querySelector('#fProy input[type="text"]');if(i){i.focus();i.select()}});
-  $("btnSave").addEventListener("click",()=>{const blob=new Blob([JSON.stringify({app:"sube-diseno",v:6,fecha:new Date().toISOString(),...S},null,1)],{type:"application/json"}),a=document.createElement("a");
+  $("btnSave").addEventListener("click",()=>{const blob=new Blob([JSON.stringify({app:"sube-diseno",v:7,fecha:new Date().toISOString(),...S},null,1)],{type:"application/json"}),a=document.createElement("a");
     a.href=URL.createObjectURL(blob);a.download=(String(S.proy.nombre).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"")||"subestacion")+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast("Proyecto guardado en un archivo .json.")});
   $("btnDis").addEventListener("click",()=>HOOK.disenar&&HOOK.disenar());
   $("btnOpen").addEventListener("click",()=>$("fileOpen").click());

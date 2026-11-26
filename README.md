@@ -2,7 +2,7 @@
 
 Proyecto final de **Subestaciones Eléctricas 2026-2**, Escuela Colombiana de Ingeniería Julio Garavito.
 
-Página web para hacer los cálculos de diseño de una subestación de alta tensión. Sirve para cualquier subestación (de 3,6 a 800 kV); el **caso base** que trae cargado es la **S/E Termales 115 kV** del curso, con los datos de las entregas finales, y con un botón se vuelve a él. El simulador de maniobras y el patio 3D de la S/E Termales están en su propia página, aparte de esta herramienta.
+Página web para hacer los cálculos de diseño de una subestación de alta tensión. Sirve para cualquier patio de 34,5 a 500 kV (los catálogos incluidos son de pararrayos y aisladores de estación); el **caso base** que trae cargado es la **S/E Termales 115 kV** del curso, y con un botón se vuelve a él. El simulador de maniobras y el patio 3D de la S/E Termales están en su propia página, aparte de esta herramienta.
 
 ## Módulos
 
@@ -15,7 +15,7 @@ Página web para hacer los cálculos de diseño de una subestación de alta tens
 7. **Apantallamiento** (Mejía Villegas cap. 5, IEEE Std 998, NTC 4552): esfera rodante (modelo electrogeométrico) y ángulos fijos (45°, 60° entre cables); el patio queda protegido si cumple cualquiera de los dos. Tablas editables de conductores y elementos, y edificios con puntas captadoras.
 8. **Configuraciones**: comparación de siete esquemas de barras, con o sin by-pass donde aplica y con seccionamiento longitudinal de barras (seccionador o interruptor de acople), y conteo de interruptores y seccionadores.
 
-Cada módulo muestra la memoria de cálculo paso a paso. La pestaña **Normas** valida el motor contra ejemplos publicados (IEEE 80, IEEE 738). En «Datos del proyecto» se escriben las tensiones normalizadas, la transformación, la configuración y los circuitos; «Diseñar con estos datos» recalcula y cambia automáticamente los equipos de catálogo que dejen de cumplir. El proyecto se puede guardar en un archivo `.json` y volver a abrir.
+Cada módulo muestra la memoria de cálculo paso a paso. La pestaña **Normas** valida el motor contra ejemplos publicados (IEEE 80, IEEE 738). En «Datos del proyecto» se escriben las tensiones normalizadas, la transformación, la configuración y los circuitos; «Diseñar con estos datos» busca automáticamente, en un proyecto nuevo, la opción más liviana que cumple en cada pestaña: pararrayos, BIL, cadena de aisladores, conductores de barras y de conexiones, corriente de corta duración, malla (retícula más abierta que cumple y mejoramiento del terreno solo si hace falta) y cables de guarda. Si después cambia un dato y algo deja de cumplir, la herramienta lo corrige y lo anota en el Resumen. El proyecto se puede guardar en un archivo `.json` y volver a abrir.
 
 ## Archivos
 
@@ -53,5 +53,3 @@ Subestaciones Eléctricas 2026-2 · Docente: E.E. MSc. Javier Andrés Ruiz Garz�
 | Danna Guerrero | Juan Diego García | María Fernanda Chala | Yuli Leon |
 | Michael Duarte | Stiven Montaño | Marlon Nivia | |
 | Ángel Daniel Cepeda | David Durán | Santiago Alfonso Tinoco | |
-
-Autores de la herramienta: Ángel Daniel Cepeda (aislamiento), Óscar Julián Limas (distancias), Camilo Andrés Palomar (malla de puesta a tierra) y Santiago Alfonso Tinoco (integración).

@@ -252,7 +252,7 @@ a{color:var(--link)}
     <div class="actions"><button class="btn" id="btnNew" type="button">Nuevo proyecto</button><button class="btn" id="btnOpen" type="button" title="Carga un proyecto guardado antes en un archivo .json">Abrir proyecto (.json)</button><button class="btn" id="btnSave" type="button" title="Descarga todos los datos del proyecto en un archivo .json">Guardar proyecto (.json)</button><button class="btn" id="btnResetAll" type="button">Caso base S/E Termales</button><button class="btn pri printBtn" type="button">Imprimir o guardar PDF</button><input type="file" id="fileOpen" accept=".json,application/json" hidden></div>
   </div>
   <details class="card" id="proyCard"><summary>Datos del proyecto <small id="proyHint"></small></summary>
-    <p class="tip" style="margin-top:10px">Los cálculos se actualizan solos con cada dato. «Diseñar» además revisa los equipos de catálogo (pararrayos, envolvente, aisladores, conductores) y cambia los que no cumplan por el primero que sí cumple.</p>
+    <p class="tip" style="margin-top:10px">Los cálculos se actualizan solos con cada dato. «Diseñar», en un proyecto nuevo, busca en cada pestaña la opción más liviana que cumple: pararrayos, BIL, aisladores, conductores, corta duración, malla (con mejoramiento del terreno solo si hace falta) y cables de guarda. En el caso base solo corrige lo que no cumpla. Los ajustes quedan anotados en el Resumen.</p>
     <div class="grid" id="fProy" style="margin-top:12px"></div>
     <div class="etbar" style="margin-top:14px"><button class="btn pri" id="btnDis" type="button">Diseñar con estos datos</button></div></details>
   <div class="flow" id="flow"></div>
@@ -512,7 +512,7 @@ a{color:var(--link)}
   </div>
   <div class="card"><h3>Equipo del proyecto <small>Subestaciones Eléctricas 2026-2 · Docente: E.E. MSc. Javier Andrés Ruiz Garzón</small></h3>
     <div class="team"><div><h4>Grupo 1</h4><ul><li>Julian Rubiano</li><li>Óscar Julián Limas</li><li>Danna Guerrero</li><li>Michael Duarte</li><li>Ángel Daniel Cepeda</li></ul></div><div><h4>Grupo 2</h4><ul><li>Juan Guillermo Nuñez</li><li>Diego Andres Cely</li><li>Juan Diego García</li><li>Stiven Montaño</li><li>David Durán</li></ul></div><div><h4>Grupo 3</h4><ul><li>Camilo Andrés Palomar</li><li>Daniel Andrés Chávez</li><li>María Fernanda Chala</li><li>Marlon Nivia</li><li>Santiago Alfonso Tinoco</li></ul></div><div><h4>Grupo 4</h4><ul><li>Ingrid Quiroga</li><li>Andres Coa</li><li>Yuli Leon</li></ul></div></div>
-    <p class="norma" style="margin:10px 0 0">Autores de esta herramienta. Ángel Daniel Cepeda: módulo de aislamiento. Óscar Julián Limas: módulo de distancias. Camilo Andrés Palomar: módulo de malla de puesta a tierra. Santiago Alfonso Tinoco: integración.</p>
+
   </div>
 </section>
 </main>
